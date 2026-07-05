@@ -30,10 +30,10 @@ RUN  apt-get update \
   && pip install --upgrade pip wheel
 
 # Install dependencies
-COPY --chown=ftuser:ftuser requirements.txt requirements-hyperopt.txt /freqtrade/
+COPY --chown=ftuser:ftuser requirements.txt requirements-hyperopt.txt requirements-freqai.txt requirements-plot.txt /freqtrade/
 USER ftuser
 RUN  pip install --user --no-cache-dir "numpy<3.0" \
-  && pip install --user --no-cache-dir -r requirements-hyperopt.txt
+  && pip install --user --no-cache-dir -r requirements-hyperopt.txt -r requirements-freqai.txt
 
 # Copy dependencies to runtime-image
 FROM base AS runtime-image
@@ -45,7 +45,7 @@ USER ftuser
 COPY --chown=ftuser:ftuser . /freqtrade/
 
 RUN pip install -e . --user --no-cache-dir \
-  && mkdir /freqtrade/user_data/ \
+  && mkdir -p /freqtrade/user_data/ \
   && freqtrade install-ui
 
 ENTRYPOINT ["freqtrade"]
