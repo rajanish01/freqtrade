@@ -75,7 +75,7 @@
     },
     "freqai": {
         "enabled": true,
-        "identifier": "regime-adaptive-trend-v2a",
+        "identifier": "regime-adaptive-trend-v2b",
         "purge_old_models": 2,
         "train_period_days": 60,
         "backtest_period_days": 3,
@@ -148,7 +148,7 @@
         "process_throttle_secs": 5
     },
     "db_url": "sqlite:///tradesv3.sqlite",
-    "strategy": "RegimeAdaptiveTrend",
+    "strategy": "RegimeAdaptiveTrendV2",
     "strategy_path": "user_data/strategies/",
     "recursive_strategy_search": true,
     "freqaimodel": "LightGBMClassifier"
