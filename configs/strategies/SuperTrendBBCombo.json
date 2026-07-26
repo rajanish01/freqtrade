@@ -1,0 +1,25 @@
+{
+    "_comment": "SuperTrend direction + BB pullback entry.",
+    "add_config_files": [
+        "../base.futures.json"
+    ],
+    "strategy": "SuperTrendBBCombo",
+    "timeframe": "15m",
+    "max_open_trades": 5,
+    "stake_amount": "unlimited",
+    "export": "signals",
+    "exchange": {
+        "pair_whitelist": [
+            "BTC/USDT:USDT",
+            "ETH/USDT:USDT",
+            "SOL/USDT:USDT",
+            "BNB/USDT:USDT",
+            "XRP/USDT:USDT",
+            "ADA/USDT:USDT",
+            "DOGE/USDT:USDT",
+            "AVAX/USDT:USDT",
+            "LINK/USDT:USDT",
+            "LTC/USDT:USDT"
+        ]
+    }
+}

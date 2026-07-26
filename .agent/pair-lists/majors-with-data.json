@@ -1,0 +1,15 @@
+{
+    "_comment": "The 10 pairs that actually have local data (binanceusdm futures, 2022-01-01 -> 2026-07-09). Verified with: freqtrade list-data --config configs/strategies/<Name>.json --show-timerange",
+    "pair_whitelist": [
+        "BTC/USDT:USDT",
+        "ETH/USDT:USDT",
+        "SOL/USDT:USDT",
+        "BNB/USDT:USDT",
+        "XRP/USDT:USDT",
+        "ADA/USDT:USDT",
+        "DOGE/USDT:USDT",
+        "AVAX/USDT:USDT",
+        "LINK/USDT:USDT",
+        "LTC/USDT:USDT"
+    ]
+}

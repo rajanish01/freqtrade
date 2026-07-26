@@ -1,0 +1,9 @@
+{
+    "_comment": "Smaller, faster whitelist for quick iteration during Phases 1-3. Switch to majors-with-data.json for Phase 4 onward.",
+    "pair_whitelist": [
+        "BTC/USDT:USDT",
+        "ETH/USDT:USDT",
+        "SOL/USDT:USDT",
+        "XRP/USDT:USDT"
+    ]
+}
