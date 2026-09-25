@@ -42,11 +42,17 @@ drift -> raise `startup_candle_count` in Phase 2 and come back.
 
 ### Step 2 — Full in-sample backtest
 
+Protections are part of the strategy now (scaffold phase). They are **silent
+without `--enable-protections`** — every backtest from here on passes it, and
+all gates are evaluated with protections active (that is the production
+behavior). `--cache none` prevents day-old results being reused after edits.
+
 ```bash
 mkdir -p results/backtests .agent/reports/$STRAT
 freqtrade backtesting --config configs/strategies/$STRAT.json \
   --timerange 20220101-20250630 \
   --breakdown month --export signals \
+  --cache none --enable-protections \
   --backtest-directory results/backtests \
   --notes "phase4 IS baseline" \
   2>&1 | grep -vE " INFO - " | tail -60
@@ -55,6 +61,28 @@ Use `--backtest-directory`. `--export-filename` is deprecated and ignored —
 results would silently go to `user_data/backtest_results/` instead.
 The export is a timestamped `.zip`; locate it with
 `ls -t results/backtests/*.zip | head -1`.
+
+### Step 2b — Realism pass at 1m detail
+
+15m candles hide intra-candle exits; freqtrade can resolve them with 1m data
+(all 10 pairs have it — see `ENVIRONMENT.md`). Callbacks (trailing stop,
+custom stop) then evaluate per 1m candle, which is how live behaves.
+
+```bash
+freqtrade backtesting --config configs/strategies/$STRAT.json \
+  --timerange 20220101-20250630 --cache none --enable-protections \
+  --timeframe-detail 1m \
+  2>&1 | grep -vE " INFO - " | tail -30
+```
+
+Compare headline numbers against Step 2. Interpretation:
+- detail run **worse** (trailing stops fire intra-candle earlier, fills
+  differ): expected — report both, treat the detail run as the honest one
+- **divergence > ~20% on profit factor or drawdown**: the main-TF result was
+  flattering the strategy. Record it; if gates pass only on the main-TF run,
+  the verdict is FAIL.
+- If the run OOMs (memory), restrict to the 3 most-traded pairs, note it, and
+  extrapolate carefully — never silently skip the step.
 
 ### Step 3 — Entry/exit reason breakdown
 
@@ -87,6 +115,9 @@ your favour, do not fill in a number you did not see.
 | Profit per pair | > 0 on >= 60% of pairs | else it is a one-pair strategy |
 | Exit reason mix | stoploss share < 50% | else the entry has no edge |
 | Funding share of gross profit | < 20% | futures: else you are renting money to hold |
+| Payoff ratio (Kotegawa K4) | avg_loss < 3 x avg_win | inverted risk-reward is a kill regardless of win rate |
+
+Gates are evaluated on the **detail (1m) run** where one exists.
 
 `FundingSkewCarry` is the exception to the funding gate — for that strategy
 funding is revenue, and the gate is instead "`funding_fees` must be positive".
@@ -107,10 +138,12 @@ Win rate is **not** a gate. A 90% win rate with fat losses fails on profit facto
 ## Exit Criteria
 - [ ] `lookahead-analysis` clean
 - [ ] `recursive-analysis` clean
-- [ ] Full IS backtest completed, export written to `results/backtests/`
+- [ ] Full IS backtest completed with `--cache none --enable-protections`,
+      export written to `results/backtests/`
+- [ ] 1m-detail realism pass run and compared; divergences reported
 - [ ] `backtesting-analysis` breakdown reported
 - [ ] Every quality gate explicitly marked PASS or FAIL with its actual value
-- [ ] `.agent/STATE.md` and `.agent/JOURNAL.md` updated
+- [ ] `.agent/STATE.md`, `.agent/JOURNAL.md` and the strategy journal updated
 
 ## Output Format
 
@@ -134,8 +167,13 @@ Avg leverage:      <N>x
 Best pair:         <pair> <N>%
 Worst pair:        <pair> <N>%
 Top exit reason:   <reason> (<N>% of exits)
-─────────────────────────
-QUALITY GATES
+─────────────────────────────────
+1m-DETAIL PASS
+Profit factor:     <N> (main-TF: <N>)
+Max drawdown:      <N>% (main-TF: <N>%)
+Trades:            <N> (main-TF: <N>)
+─────────────────────────────────
+QUALITY GATES (detail run)
 Profit factor > 1.2:        PASS/FAIL (<actual>)
 Max drawdown < 25%:         PASS/FAIL (<actual>)
 Trades >= 100:              PASS/FAIL (<actual>)
@@ -143,6 +181,7 @@ Sharpe > 0.5:               PASS/FAIL (<actual>)
 Profitable pairs >= 60%:    PASS/FAIL (<actual>)
 Stoploss exits < 50%:       PASS/FAIL (<actual>)
 Funding < 20% of gross:     PASS/FAIL (<actual>)
+Payoff: avg_loss < 3x avg_win: PASS/FAIL (<actual>)
 ─────────────────────────
 VERDICT: PASS (proceed to Phase 5) / FAIL (iterate)
 ```

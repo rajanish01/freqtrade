@@ -15,7 +15,7 @@ losing strategy — it will just overfit the losses.
 ### Step 0 — Confirm the model exists
 
 ```bash
-freqtrade list-freqaimodels
+freqtrade list-freqaimodels --config configs/strategies/$STRAT.json
 ```
 Only `LightGBM*`, `XGBoost*` and `SKLearnRandomForestClassifier` are installed
 here. **CatBoost, torch and the Reinforcement Learning models are not.**
@@ -87,11 +87,13 @@ and it never touches the risk layer.
 
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json --freqaimodel LightGBMRegressor \
-  --timerange 20250701-20260709 \
+  --timerange 20250701-20260709 --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -50
 ```
-FreqAI needs `train_period_days` (60) of history *before* the start date. The
+FreqAI needs `train_period_days` of history *before* the start date. The
 data begins 2022-01-01, so any start after 2022-03-01 is safe.
+`--enable-protections` must match the Phase 5 Step 4 baseline (protections ON)
+or the head-to-head comparison is confounded.
 
 Expect this to be slow — it trains a model per pair per `backtest_period_days`.
 

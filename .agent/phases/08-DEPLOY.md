@@ -38,12 +38,19 @@ Must be true of the finished file:
 - `add_config_files` still points at `../base.futures.json`, so the
   `api_server`, order-book pricing and futures-mode gotchas stay handled.
   Do not inline-copy the base and then diverge from it.
+- **Do not override `tradable_balance_ratio`** — the base's `0.5` IS the
+  Kotegawa half-capital reserve (K1). Overriding it upward invalidates the
+  risk math in the dossier.
+- Protections live in the strategy class and are **always active in
+  dry-run/live** — `--enable-protections` is a backtest-only flag. No config
+  key for protections exists or is needed (gotcha #3).
+- `stoploss_on_exchange` stays **off** for the dry-run so behavior matches
+  the validated backtest. At live time it can be reconsidered (survives bot
+  crashes; needs exchange support — see `.agent/reference/callbacks-reference.md`).
 - No `exchange.key` / `exchange.secret` written here.
   **Never** write a real key into a config file. The environment already
   supplies `FREQTRADE__EXCHANGE__KEY` / `__SECRET`.
 - Pair whitelist = only the pairs that were profitable in Phase 7
-- No `protections` key in any config (gotcha #3) — protections belong in the
-  strategy class
 - Leverage cap unchanged from what Phase 7 validated. Raising leverage at
   deploy time invalidates every number in the dossier.
 
@@ -74,12 +81,15 @@ That is expected — record it as SKIPPED (offline) rather than FAIL.
 Create `.agent/reports/<strategy>/FINAL.md`:
 - Hypothesis in plain English, and whether the backtests supported it
 - Final parameters and where they live
-- IS and OOS headline numbers, side by side
+- IS and OOS headline numbers, side by side (main-TF and 1m-detail where run)
 - Known regime vulnerabilities from Phase 7, stated bluntly
 - Expected performance envelope: best / typical / worst quarter observed
-- Risk parameters and the reasoning behind each
+- Risk parameters and the reasoning behind each — including the recorded
+  Kotegawa layer numbers (risk per trade, protections values, payoff ratio)
 - Monitoring checklist: what would tell the user to switch it off
-  (e.g. "3 consecutive losing weeks", "drawdown > 20%", "trade rate halves")
+  (e.g. "3 consecutive losing weeks", "drawdown > 20%",
+  "StoplossGuard pausing more than twice a week", "trade rate halves",
+  "live win rate diverging from backtest within the first month")
 
 Be honest in this document. It is the artifact the user will rely on when
 deciding whether to risk money. Include the failure modes.

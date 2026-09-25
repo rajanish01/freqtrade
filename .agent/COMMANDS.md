@@ -5,7 +5,7 @@ literally; set `STRAT` once and change only the timerange.
 
 ```bash
 source .venv/bin/activate
-STRAT=BBRSIMeanReversion          # any name from user_data/strategies/plan/INDEX.md
+STRAT=SmokeTestStrategy           # set per run: a plan name from INDEX.md, or the canary
 CFG=configs/strategies/$STRAT.json
 ```
 
@@ -45,7 +45,7 @@ freqtrade backtesting --config configs/strategies/SmokeTestStrategy.json \
 
 ```bash
 # 1-month smoke run. Phase 1-2: 0 trades is fine. Phase 3: must be > 0.
-freqtrade backtesting --config $CFG --timerange 20250601-20250701 \
+freqtrade backtesting --config $CFG --timerange 20250601-20250701 --cache none \
   2>&1 | grep -vE " INFO - " | tail -20
 ```
 
@@ -76,16 +76,25 @@ freqtrade recursive-analysis --config $CFG \
 Every indicator must read `0.000%`. Non-zero drift = `startup_candle_count` too low.
 
 ```bash
-# Full in-sample backtest with export
+# Full in-sample backtest with export. Protections are silent without
+# --enable-protections; --cache none prevents day-old results being reused.
 mkdir -p results/backtests
 freqtrade backtesting --config $CFG --timerange 20220101-20250630 \
-  --breakdown month --export signals \
+  --breakdown month --export signals --cache none --enable-protections \
   --backtest-directory results/backtests --notes "IS baseline" \
   2>&1 | grep -vE " INFO - " | tail -60
 ```
 Use `--backtest-directory`, **not** `--export-filename` (deprecated and silently
 ignored — results would land in `user_data/backtest_results/`). Output is a
 timestamped `.zip`; find it with `ls -t results/backtests/*.zip | head -1`.
+
+```bash
+# Realism pass: resolves intra-candle exits on 1m data (all 10 pairs have it).
+# Trailing/custom stops then behave as they will live. Compare to the main run.
+freqtrade backtesting --config $CFG --timerange 20220101-20250630 \
+  --cache none --enable-protections --timeframe-detail 1m \
+  2>&1 | grep -vE " INFO - " | tail -30
+```
 
 ```bash
 # Per-entry/exit-reason breakdown. Requires --export signals above.
@@ -113,6 +122,8 @@ print('trades', len(t), '| funding total', round(t.funding_fees.sum(),4),
 
 ```bash
 # Optimise buy/sell spaces ONLY, on the IS window. Risk stays deterministic.
+# If any opt_* param is used inside populate_indicators, ADD --analyze-per-epoch
+# (indicators otherwise recompute never, and epochs optimize stale columns).
 freqtrade hyperopt --config $CFG --spaces buy sell \
   --hyperopt-loss SharpeHyperOptLossDaily \
   --epochs 300 --timerange 20220101-20250630 \
@@ -125,9 +136,9 @@ freqtrade hyperopt-show --config $CFG --best --print-json
 ```
 
 ```bash
-# OOS validation — the window hyperopt never saw
+# OOS validation — the window hyperopt never saw, WITH protections on
 freqtrade backtesting --config $CFG --timerange 20250701-20260709 \
-  --breakdown month \
+  --breakdown month --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -60
 ```
 
@@ -156,14 +167,20 @@ for TR in 20220101-20220401 20220401-20220701 20220701-20221001 20221001-2023010
           20250101-20250401 20250401-20250701 20250701-20251001 20251001-20260101 \
           20260101-20260401 20260401-20260709 ; do
   echo "=== $TR"
-  freqtrade backtesting --config $CFG --timerange $TR 2>&1 \
+  freqtrade backtesting --config $CFG --timerange $TR --cache none --enable-protections 2>&1 \
     | grep -E "Total profit %|Profit factor|Absolute Drawdown|Total/Daily Avg Trades"
 done
 ```
 
 ```bash
-# Cost sensitivity: 2x fees to model slippage
+# Cost sensitivity: 2x fees to model slippage — the honest worst case is
+# 2x fees AND 1m-detail exits together
 freqtrade backtesting --config $CFG --timerange 20220101-20260709 --fee 0.001 \
+  --cache none --enable-protections \
+  2>&1 | grep -vE " INFO - " | tail -30
+
+freqtrade backtesting --config $CFG --timerange 20220101-20260709 --fee 0.001 \
+  --timeframe-detail 1m --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -30
 ```
 
@@ -181,10 +198,23 @@ freqtrade trade --config configs/strategies/$STRAT.dryrun.json
 freqtrade backtesting-show --config $CFG --backtest-directory results/backtests
 ```
 
+## Dataset (re)build — pre-authorized, use reference commands
+
+```bash
+# Full futures dataset restore/top-up. setsid so the tool timeout cannot kill it.
+# Fresh 2026.6 downloads auto-include mark + funding_rate in futures mode.
+setsid nohup freqtrade download-data \
+  --config configs/strategies/SmokeTestStrategy.json \
+  --timeframes 1m 5m 15m 30m 1h 4h 8h 1d \
+  --timerange 20220101- \
+  > results/download.log 2>&1 < /dev/null &
+```
+Full procedure, gotchas and verification: `.agent/reference/data-download.md`.
+
 ## Never run these
 ```bash
 freqtrade backtesting --strategy X            # no --config -> loads config.json. FORBIDDEN.
-freqtrade download-data ...                   # offline machine; ask the user first
+freqtrade download-data ...                   # only via .agent/reference/data-download.md commands
 freqtrade trade ... --dry-run false
 rm -rf user_data/data/...
 ```

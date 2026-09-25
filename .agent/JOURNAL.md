@@ -107,3 +107,67 @@ Decision: Replaced the three shared configs (backtest/hyperopt/freqai.json) with
           add_config_files. Each config declares its own `strategy`, so
           --strategy is redundant. Also removed `strategy_path` from configs,
           which had been causing list-strategies to report DUPLICATE NAME.
+
+## 2026-09-24 — FRAMEWORK UPGRADE v2 — NOTE
+Strategy: portfolio-wide (driven by freqtrade 2026.6 docs review)
+Command:  none (documentation/config changes only)
+Result:   Kotegawa risk layer added (tradable_balance_ratio 0.95 -> 0.5,
+          per-trade risk <= 2% formula, protections @property template with
+          StoplossGuard trade_limit 1 / MaxDrawdown equity 10% / Cooldown,
+          position_adjustment_enable=False, payoff gate avg_loss < 3x avg_win).
+          Phase 4 gains --timeframe-detail 1m realism pass + --cache none +
+          --enable-protections. Phase 5 gains --analyze-per-epoch correctness
+          rule (params inside populate_indicators) + --early-stop + loss-fn
+          options (YELLOW). Phase 7 walk-forward + 2x-fee runs now with
+          protections on; 2x-fee also at 1m detail. Phase 8: reserve ratio
+          locked, stoploss_on_exchange off in dry-run. New references:
+          kotegawa-risk-layer.md, callbacks-reference.md. New skill:
+          .opencode/skills/freqtrade-strategy-productionizer/SKILL.md.
+          ENVIRONMENT.md: Python 3.13.11 (was wrongly 3.14.6), 1m-data fact,
+          config-architecture + cache + analyze-per-epoch + protections gotchas.
+          SmokeTestStrategy.py restored from git (was deleted in worktree;
+          RegimeAdaptiveTrend*.py left deleted as found).
+Decision: Active strategy = BBRSIMeanReversion (user-approved). Per-strategy
+          journal protocol live at .agent/reports/<Name>/journal.md. Proceed
+          to Phase 0.
+
+## 2026-09-24 — Phase 0 DATA-READINESS — PASS
+Strategy: BBRSIMeanReversion
+Command:  download-data (dataset restore, user-authorized) + list-data + list-strategies + canary backtest
+Result:   Dataset was FOUND DELETED (user_data/data empty; husk created today).
+          Restored via freqtrade 2026.6 download-data, 10 pairs x 8 TFs,
+          20220101-20260923, 664MB, funding 1h native (no #13 repair needed).
+          Canary: 50 trades, -3.95%, funding on 39/50 trades. Configs: exactly 2 loaded.
+Decision: Phase 0 PASS. Data reference written to .agent/reference/data-download.md.
+          ENVIRONMENT.md data section re-verified. Extra OOS data (to 2026-09-23)
+          noted; split unchanged. Proceed to Phase 1.
+
+## 2026-09-24 — Phase 4 BACKTEST — FAIL (iter 1)
+Strategy: BBRSIMeanReversion
+Command:  IS backtest 20220101-20250630 --enable-protections (defaults)
+Result:   PF 0.615, -81.02%, DD 81.33%, Sharpe -2.48, 4567 trades, 0/10 pairs
+          profitable. Bias checks CLEAN. Stoploss bleed = 76% of gross loss
+          (318 trades, avg -12.1%, 27.9h grinds); RSI exits cut at -2.6% avg.
+          Reversion mechanism itself prints +1238 (ROI exits).
+Decision: Postmortem phase4-iter1.md. Proposal: rejection-confirmed entry
+          (Phase 3). Await user approval. 1m detail pass still running.
+
+## 2026-09-26 — FRAMEWORK — NOTE (full reset + hardening)
+Strategy: BBRSIMeanReversion (reset); portfolio-wide (hardening)
+Command:  file edits only — no backtests run
+Result:   User-approved full reset of the in-flight run: deleted
+          user_data/strategies/BBRSIMeanReversion.py,
+          configs/strategies/BBRSIMeanReversion.json,
+          .agent/reports/BBRSIMeanReversion/ (journal + postmortem), and the
+          two stale backtest zips in results/backtests/. The Phase 4 diagnosis
+          above (2026-09-24 entry) survives here — entry-fires-on-knife-candle
+          root cause; pre-ranked fix = rejection-confirmed entry.
+          Framework hardening on rj/develop: 11 defects fixed (funding-warning
+          contradiction in gotcha #12; list-freqaimodels without --config;
+          missing --cache none / --enable-protections in phase templates;
+          base.futures.json self-serve edits now need approval; journal-split
+          documented). New: prompts/final-verdict.md (terminal DEAD verdict),
+          reports/PORTFOLIO.md, scripts/framework-check.sh, opencode
+          permission deny rules. STATE.md reset to no active strategy.
+Decision: Framework is now the focus; portfolio execution (Part 5) starts on
+          user go. BBRSIMeanReversion resumes from Phase 1 when picked up.

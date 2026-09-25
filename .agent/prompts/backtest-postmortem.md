@@ -8,6 +8,10 @@ Write the result to `.agent/reports/<strategy>/phase4-iter<N>.md`.
 - The `backtesting-analysis` entry/exit reason breakdown
 - The per-pair table
 - `.agent/JOURNAL.md` — what has already been tried on this strategy
+- The per-strategy journal `.agent/reports/<Name>/journal.md` — the Phase 1
+  risk-layer checks. Read BOTH journals: the global one is the cross-run log,
+  the per-strategy one holds the risk numbers; a diagnosis that sees only one
+  is half-informed.
 
 ## Step 1 — Classify the failure
 

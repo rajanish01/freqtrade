@@ -20,8 +20,30 @@ freqtrade hyperopt --config configs/strategies/$STRAT.json \
 
 - `--spaces buy sell` only. **Never** optimise `roi`, `stoploss`, `trailing`
   or `protection` — the risk layer stays deterministic. Changing this is YELLOW.
-- 300 epochs default. More than 500 requires user approval.
+- 300 epochs default. More than 500 requires user approval. `--early-stop 40`
+  may be added to stop after 40 epochs without improvement.
 - The timerange is the IS window. Using the OOS window here invalidates the run.
+
+**Correctness rule — `--analyze-per-epoch`:** hyperopt runs
+`populate_indicators` ONCE by default. If any `opt_*` parameter is used
+*inside* `populate_indicators` (Keltner multiplier, VWAP period, SuperTrend
+period/mult...), the indicator columns are computed with the default values
+and the epochs are optimising against stale columns — garbage in, garbage
+out. For such strategies add `--analyze-per-epoch` (slower; indicators
+recompute per epoch). Check the strategy file and state which case applies in
+the report.
+
+**Protections during hyperopt:** epochs run without protections (excluded
+space, and `--enable-protections` would slow every epoch). Parameters are
+therefore tuned pre-circuit-breakers and **validated with protections on**
+in Step 4 — state this simplification in the report.
+
+**Loss function (YELLOW to change):** default is `SharpeHyperOptLossDaily`.
+Drawdown-aware alternatives aligned with the Kotegawa layer:
+`CalmarHyperOptLoss` (return relative to max drawdown),
+`MaxDrawDownRelativeHyperOptLoss`, `SortinoHyperOptLossDaily` (downside
+deviation), `MultiMetricHyperOptLoss`. Switching requires user approval;
+Sharpe remains the default.
 
 ### Step 2 — Review before applying
 
@@ -52,7 +74,7 @@ Record which option you chose in `.agent/JOURNAL.md`.
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
   --timerange 20250701-20260709 \
-  --breakdown month \
+  --breakdown month --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -60
 ```
 
@@ -77,6 +99,12 @@ Response to OVERFIT, in order of preference:
 
 Never respond to overfitting by re-running hyperopt on more data that includes
 the OOS window.
+
+**Endpoint:** if all 3 fix iterations burn without the overfitting tests
+passing, or the plan's kill criteria are met, STOP. Do not keep grinding.
+Write the terminal verdict per `.agent/prompts/final-verdict.md` — the
+consolidated "why this failed" report — and set `phase_status: DEAD` in
+`.agent/STATE.md`.
 
 ## DO NOT
 - Optimise `roi` / `stoploss` / `trailing` spaces

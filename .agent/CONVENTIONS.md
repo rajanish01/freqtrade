@@ -71,6 +71,22 @@ rule-based, reproducible, and contains no learned parameters. See
 price distance. A `-0.05` stop at 3x fires after a 1.67% price move. Never port
 a stoploss between strategies with different leverage caps without recomputing.
 
+### Kotegawa risk layer (mandatory — see `reference/kotegawa-risk-layer.md`)
+
+- `tradable_balance_ratio: 0.5` — half-capital reserve (set in base config;
+  strategies never override it)
+- Per-trade risk: `(0.5 / max_open_trades) * |stoploss| <= 2%` of equity —
+  computed and recorded at Phase 1
+- Protections live in the strategy class as `@property protections`
+  (StoplossGuard / MaxDrawdown / CooldownPeriod), hand-tuned, never hyperopted,
+  and require `--enable-protections` in every backtest from Phase 4 onward
+- `position_adjustment_enable = False` — never average down
+- `trailing_stop_positive_offset < minimal_roi["0"]` — docs rule; if the
+  offset is at/above ROI@0, ROI always fires first and the trailing config is
+  dead code
+- `confirm_trade_exit` never blocks a stoploss exit
+- Stoploss must fire at <= half the liquidation distance at max leverage
+
 ## Futures — this repo is futures-only
 
 - `trading_mode: futures`, `margin_mode: isolated`, exchange `binanceusdm`
@@ -103,6 +119,7 @@ Phase 4 / Phase 5-OOS gates (all must pass):
 | Sharpe (daily) | > 0.5 |
 | Profitable pairs | >= 60% |
 | Stoploss share of exits | < 50% |
+| Payoff ratio (Kotegawa K4) | avg_loss < 3 x avg_win |
 
 Phase 7 robustness gates:
 
@@ -122,3 +139,20 @@ with oversized losses fails on profit factor, which is the gate that matters.
 - Report the number you saw, or say the command did not run.
 - Never fill an output template with placeholder or estimated values.
 - Bad results are reported exactly as plainly as good ones.
+
+## Journals
+
+- Per-strategy journal: `.agent/reports/<Name>/journal.md`, created at
+  Phase 0, appended once per phase completion AND once per fix iteration.
+  Append-only — never edit or delete past entries.
+- Every phase outcome also gets a one-line cross-entry in `.agent/JOURNAL.md`.
+- Temporary config/param changes are logged in the journal and restored in
+  the same turn.
+- **The split:** the global `.agent/JOURNAL.md` is the cross-run log — it is
+  what the postmortem and final-verdict prompts read. The per-strategy journal
+  holds phase-by-phase detail, including the Phase 1 risk-layer numbers. When
+  diagnosing a failure, read BOTH, and mirror the risk numbers into the global
+  entry so they are never invisible to the failure analysis.
+- A strategy that dies (kill criteria, or 3 failed iterations) gets a terminal
+  verdict at `.agent/reports/<Name>/DEAD.md` — see
+  `.agent/prompts/final-verdict.md`.

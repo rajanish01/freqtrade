@@ -24,9 +24,12 @@ For each indicator in the strategy idea:
 
 ## DO NOT
 - Touch `populate_entry_trend` / `populate_exit_trend` (Phase 3)
-- Touch `minimal_roi`, `stoploss`, `trailing_stop` (risk is fixed; YELLOW)
 - Add FreqAI features (Phase 6)
 - Create new files
+
+## YELLOW (propose and wait — do not do unilaterally)
+- Touching `minimal_roi`, `stoploss`, `trailing_stop` (risk is fixed at
+  Phase 1; changes need user approval per AGENTS.md §4)
 
 ## Per-indicator checklist
 For EACH indicator added, confirm:
@@ -40,7 +43,7 @@ For EACH indicator added, confirm:
 
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
-  --timerange 20250601-20250701 \
+  --timerange 20250601-20250701 --cache none \
   2>&1 | grep -vE " INFO - " | tail -20
 ```
 Still 0 trades — that is correct, signals arrive in Phase 3. You are only

@@ -4,15 +4,31 @@ The agent rewrites this file at the end of every phase and every fix iteration.
 Keep it short. This is the first thing read at the start of a session.
 
 ```yaml
-active_strategy:    (none selected)
-strategy_file:      (not yet created)
-plan_file:          user_data/strategies/plan/<Name>.md
-config:             configs/strategies/<Name>.json
+active_strategy:    (none — pick from user_data/strategies/plan/INDEX.md)
+strategy_file:      (none)
+plan_file:          (none)
+config:             (none yet — created at Phase 0/1 as configs/strategies/<Name>.json)
 current_phase:      0
-phase_status:       NOT_STARTED      # NOT_STARTED | IN_PROGRESS | PASS | FAIL
-iteration:          0                # fix attempts within current_phase (max 3)
+phase_status:       NOT_STARTED     # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
+iteration:          0               # fix attempts within current_phase (max 3)
 freqai_enabled:     false
+branch:             rj/develop      # framework branch; create rj/strategy/<Name> per strategy
+journal:            (created at Phase 0 as .agent/reports/<Name>/journal.md)
 ```
+
+Reset on 2026-09-26 (user-approved full reset): the in-progress BBRSIMeanReversion
+run (Phase 4 FAIL, iter 1) was removed — strategy file, config and per-strategy
+reports deleted. The Phase 4 diagnosis survives in `.agent/JOURNAL.md`
+(2026-09-24 Phase 4 entry): PF 0.615, root cause = entry fires on the knife
+candle with no confirmation, pre-ranked fix = rejection-confirmed entry.
+When this plan is picked up again, restart from Phase 1 and re-propose that
+fix at Phase 3.
+
+Framework v2 (Kotegawa risk layer, protections, `--timeframe-detail 1m`,
+`--cache none`, `--enable-protections` on all Phase 4+ backtests,
+per-strategy journals, orchestrator skill, tool-level guardrails,
+`.agent/scripts/framework-check.sh`) lives on `rj/develop`. Future strategy
+branches fork from it.
 
 Pick the next strategy from `user_data/strategies/plan/INDEX.md`.
 Recommended order: `BBRSIMeanReversion` first (it is the control), then
@@ -33,6 +49,8 @@ funding_fees:       -
 ## Portfolio ledger
 
 Nine plans, none implemented yet. A plan is only real once it passes Phase 7.
+Terminal states: `DEAD` (verdict at `.agent/reports/<Name>/DEAD.md`) or
+`DEPLOYED` (`FINAL.md`). Cross-run summary: `.agent/reports/PORTFOLIO.md`.
 
 | # | Strategy | TF | Short | Phase | Status |
 |---|----------|-----|-------|-------|--------|
@@ -46,15 +64,7 @@ Nine plans, none implemented yet. A plan is only real once it passes Phase 7.
 | 8 | FundingSkewCarry | 1h | yes | 0 | NOT_STARTED |
 | 9 | LiquidationWickFade | 5m | yes | 0 | NOT_STARTED |
 
-## Open issues
-
-- `.agent/prompts/strategy-idea.md` is still the blank template. It is only
-  needed for a *new* idea — the nine plans above are already specified.
-- `user_data/strategies/` currently contains only `RegimeAdaptiveTrend.py`,
-  `RegimeAdaptiveTrendV2.py` (pre-existing, outside this workflow) and
-  `SmokeTestStrategy.py` (the Phase 0 canary — leave it in place).
-
-## Infra baseline (verified 2026-07-26, do not re-verify unless something breaks)
+## Infra baseline (verified 2026-09-24, do not re-verify unless something breaks)
 
 | Check | Result |
 |-------|--------|
@@ -65,8 +75,9 @@ Nine plans, none implemented yet. A plan is only real once it passes Phase 7.
 | `recursive-analysis` | runs, flags indicator drift at low warm-up |
 | `hyperopt` (5 epochs) | runs clean |
 | `backtesting-analysis` | runs, reads exported zip |
-| Funding fees | **applied** — 32/42 canary trades carry non-zero funding |
+| Funding fees | **applied** — 39/50 canary trades carry non-zero funding |
 | Export path | `results/backtests/*.zip` via `--backtest-directory` |
 
 `user_data/strategies/SmokeTestStrategy.py` is the infra canary. If it fails,
 the problem is the environment, not the strategy.
+`.agent/scripts/framework-check.sh` verifies all of the above in one run.

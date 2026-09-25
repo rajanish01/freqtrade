@@ -15,10 +15,30 @@ Structure, no logic. The file must contain:
 - `minimal_roi`, `stoploss`, `trailing_stop` — explicit conservative defaults
   (e.g. `minimal_roi = {"0": 0.10, "60": 0.05, "120": 0.01}`, `stoploss = -0.05`)
 - `startup_candle_count: int = 200` (refined in Phase 2)
+- The **risk-layer block** (see "Risk layer" below): `position_adjustment_enable = False`,
+  the `leverage()` callback from `futures-playbook.md` §4 with the plan's
+  `target_vol_pct` / `max_leverage_cap`, and the `@property protections`
+  template from `kotegawa-risk-layer.md` §K5 (candle counts converted to the
+  strategy's timeframe)
+- `use_custom_stoploss = False` (flip to `True` only if the plan calls for a
+  custom stop, e.g. ObeliskRSIRegime — then read `.agent/reference/callbacks-reference.md` first)
 - `populate_indicators()` returning the dataframe unchanged
 - `populate_entry_trend()` / `populate_exit_trend()` using the empty scaffold below
 - Hyperopt parameter declarations as class attributes, `opt_` prefix,
   one per tunable value named in the strategy idea
+
+## Risk layer — verify and record at scaffold time
+
+Read `.agent/reference/kotegawa-risk-layer.md`. Compute these from the values
+you just wrote and record them in `.agent/reports/<Name>/journal.md`:
+- `risk_per_trade = (tradable_balance_ratio / max_open_trades) x |stoploss|` — must be <= 0.02
+- `|stoploss| / max_leverage_cap` (price distance) must be <= half the
+  liquidation distance `1 / max_leverage_cap`
+- `trailing_stop_positive_offset < minimal_roi["0"]` (docs rule — otherwise ROI
+  always fires first) and `trailing_stop_positive <= offset / 3` (Kotegawa K4)
+- the exact protections values chosen, in the strategy's timeframe
+
+Any violation = FAIL before you run anything.
 
 ## The empty scaffold — use exactly this
 
@@ -55,10 +75,11 @@ dataframe.loc[(), ['enter_long', 'enter_tag']] = (1, 'enter_long')   # BROKEN
 - [ ] `freqtrade list-strategies --config configs/strategies/$STRAT.json` shows the
       strategy with status `OK`
 - [ ] Smoke backtest runs clean and reports 0 trades:
-      `freqtrade backtesting --config configs/strategies/$STRAT.json --strategy <name> --timerange 20250601-20250701`
+      `freqtrade backtesting --config configs/strategies/$STRAT.json --timerange 20250601-20250701 --cache none`
 - [ ] `populate_indicators` returns the dataframe unchanged
 - [ ] No entry/exit conditions present
 - [ ] All `opt_*` params from the strategy idea are declared
+- [ ] Risk-layer checks computed and recorded in the journal (no violation)
 - [ ] `.agent/STATE.md` updated
 
 ## Output Format

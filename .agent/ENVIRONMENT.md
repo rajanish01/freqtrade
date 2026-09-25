@@ -3,7 +3,7 @@
 Everything here was verified by running the command shown. Do not guess these
 values; if something contradicts this file, re-verify and update this file.
 
-Last verified: 2026-07-26
+Last verified: 2026-09-24
 
 ---
 
@@ -11,12 +11,13 @@ Last verified: 2026-07-26
 
 | Thing | Value |
 |-------|-------|
-| Python | 3.14.6 |
+| Python | 3.13.11 (venv; `freqtrade --version`. Earlier note of 3.14.6 was stale) |
 | pandas | **3.0.3** (see gotcha #1 — this breaks common freqtrade snippets) |
 | numpy | 2.4.6 |
 | ccxt | 4.5.61 |
+| freqtrade | 2026.6 (this checkout, bleeding-edge) |
 | venv | `.venv` — activate with `source .venv/bin/activate` |
-| `timeout` cmd | **not available** (macOS). Do not use it in commands. |
+| `timeout` cmd | Linux shell, available; note the bash tool kills its process group on timeout — use `setsid` for long downloads (see data-download.md) |
 
 ## Agent model
 
@@ -37,7 +38,7 @@ or in a Modelfile: `PARAMETER num_ctx 32768`.
 If the agent starts ignoring the phase gates, editing files outside the allowed
 paths, or forgetting the IS/OOS split, suspect context truncation first.
 
-## Data (verified: `freqtrade list-data --config configs/strategies/$STRAT.json --show-timerange`)
+## Data (verified: 2026-09-24, `freqtrade list-data --config configs/strategies/BBRSIMeanReversion.json --show-timerange`)
 
 | Thing | Value |
 |-------|-------|
@@ -46,17 +47,27 @@ paths, or forgetting the IS/OOS split, suspect context truncation first.
 | Trading mode | `futures` / `margin_mode: isolated` |
 | Pair format | **`BTC/USDT:USDT`** (futures notation, with the `:USDT` suffix) |
 | Pairs with data | BTC, ETH, SOL, BNB, XRP, ADA, DOGE, AVAX, LINK, LTC (all `/USDT:USDT`) |
-| Timeframes on disk | 1m, 5m, 15m, 30m, 1h, 4h, 8h, 1d |
-| Common date range | **2022-01-01 → 2026-07-09** (all 10 pairs have 15m + 1h) |
-| Funding rate | 8h, present. Mark price: 1h + 8h. |
+| Timeframes on disk | 1m, 5m, 15m, 30m, 1h, 4h, 8h, 1d (all 10 pairs, all full range) |
+| 1m coverage | all 10 pairs, full range — enables `--timeframe-detail 1m` realism passes |
+| Common date range | **2022-01-01 → 2026-09-23** (fresh download 2026-09-24; supersedes the old 2026-07-09 end) |
+| Funding rate | 10 files at **1h, native** (8h rows inside). Gotcha #13's manual copy repair is NOT needed for fresh downloads. Mark price: 1h. |
+| Dataset restore commands | `.agent/reference/data-download.md` |
+
+The IS/OOS split below is UNCHANGED (IS 20220101-20250630, OOS 20250701-20260709).
+Data now extends ~2.5 months beyond the documented OOS end — that extra window
+(20260709-20260923) is untouched by anything and available if the user approves
+extending Phase 7 validation with a 19th quarter.
 
 There is also a `user_data/data/binance/` directory. It is a **stale partial
 copy** (6 pairs, only 15m + 1h). Do not use it. Do not delete it either.
 
-### No network downloads
+### Network and downloads
 
-Assume this machine is offline for exchange calls. Do **not** run
-`freqtrade download-data` unless the user explicitly asks. Work with the range above.
+**Network IS available** (verified 2026-09-24: api.binance.com and
+data.binance.vision both reachable). Restoring the standard dataset is
+pre-authorized; anything beyond it (new pairs/exchanges/modes, `--dl-trades`)
+still requires asking the user first. Use the verified commands in
+`.agent/reference/data-download.md` — not improvised ones.
 
 ---
 
@@ -126,6 +137,37 @@ Because freqtrade defaults to `user_data/config.json` or `config.json` when
 ---
 
 ## GOTCHAS — each of these has actually bitten this repo
+
+### 0. Config architecture (design decision, docs-verified)
+
+Freqtrade's documented default is `config.json` in the cwd. This repo
+deliberately bypasses that default on every command: `--config
+configs/strategies/<Name>.json` (inheriting `configs/base.futures.json` via
+`add_config_files` — both documented freqtrade mechanisms). Root `config.json`
+and `user_data/config.json` are the user's own files: never read, never
+written, never passed. Benefits: per-strategy isolation, reproducible runs,
+the user's own setup keeps working untouched.
+
+### 0b. `--cache` defaults to `day`
+
+A backtest re-run within 24h with a matching config can silently load a
+cached result. Always pass `--cache none` in framework commands (already in
+all `COMMANDS.md` templates). The cache cannot see edits to imported modules
+and can reuse results from runs made before late-arriving data.
+
+### 0c. `--analyze-per-epoch` is a correctness flag, not a speed flag
+
+Hyperopt runs `populate_indicators` once by default. Any `opt_*` parameter
+used *inside* `populate_indicators` (Keltner mult, VWAP period, SuperTrend
+period/mult) does not recompute per epoch — the epochs then optimise against
+stale, default-valued columns. Such strategies MUST pass
+`--analyze-per-epoch`, accepting the slowdown.
+
+### 0d. Protections are silent in backtests without `--enable-protections`
+
+Strategies define protections as a class `@property` (never config — gotcha
+#3). Backtesting and hyperopt ignore them unless `--enable-protections` is
+passed. Every Phase 4/5/7 backtest template includes it.
 
 ### 1. pandas 3 void-dtype crash (most important)
 This common freqtrade scaffold pattern **crashes the backtester**:
@@ -218,10 +260,13 @@ orders unless `entry_pricing.price_side` is `"other"`
 All configs use `"other"`, which is also the more conservative fill assumption.
 
 ### 12. Benign warnings — ignore these
-- `No history for <PAIR>, funding_rate, 1h found` — funding data is stored at
-  8h. Backtests still run correctly.
 - `binanceusdm requires to release all resources...` / `Unclosed connector` —
   ccxt teardown noise on exit, always printed, harmless.
 - `Using N calls to get OHLCV` — startup-candle warning, not an error.
 
 Do not spend an iteration chasing any of these.
+
+**NOT benign — do not ignore:** `No history for <PAIR>, funding_rate, 1h
+found`. It means funding fees are silently zero (gotcha #13) and every futures
+backtest is optimistic. Treat it as a failure: re-verify per
+`.agent/reference/data-download.md` (funding section), not as teardown noise.

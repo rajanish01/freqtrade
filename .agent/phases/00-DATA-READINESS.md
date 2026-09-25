@@ -18,7 +18,7 @@ by copying an existing one and changing `strategy`, `timeframe` and
 `pair_whitelist`. Keep `add_config_files: ["../base.futures.json"]`.
 
 ## Your Task
-Run four checks. Modify no strategy code.
+Run five checks. Modify no strategy code.
 
 ### Check 1 — data exists for the requested pairs and timeframe
 ```bash
@@ -27,14 +27,21 @@ freqtrade list-data --config configs/strategies/$STRAT.json --show-timerange
 Confirm every pair in the strategy idea appears, at the strategy's timeframe,
 covering the IS+OOS range in `.agent/ENVIRONMENT.md`.
 
-If a requested pair or timeframe is missing: STOP. Do not run
-`download-data` (machine is offline). Report the gap and ask the user whether
-to drop the pair or change the timeframe.
+Also confirm **1m data** exists for every whitelist pair (same listing) — the
+Phase 4 realism pass depends on `--timeframe-detail 1m`. If 1m is missing for
+any pair, note it: Phase 4's detail pass will run on the pairs that have it,
+and the gap is recorded in the journal.
+
+If a requested pair or timeframe is missing: STOP. Report the gap and ask the
+user whether to drop the pair or change the timeframe. Restoring the standard
+dataset is pre-authorized — use the verified commands in
+`.agent/reference/data-download.md` (never improvised ones). Anything beyond
+that dataset (new pairs, exchanges, spot mode) needs the user first.
 
 ### Check 2 — config isolation and pair notation
 
 ```bash
-freqtrade list-strategies --config configs/strategies/<Name>.json 2>&1 | grep "Using config"
+freqtrade list-strategies --config configs/strategies/$STRAT.json 2>&1 | grep "Using config"
 ```
 Exactly two configs must be listed: the strategy config and `../base.futures.json`.
 If `config.json` or `user_data/config.json` appears, **STOP** — a `--config` is
@@ -46,7 +53,7 @@ never `BTC/USDT`) and matches the pairs in the plan that actually have data.
 ### Check 3 — infra canary
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
-  --timerange 20250601-20250701 \
+  --timerange 20250601-20250701 --cache none \
   2>&1 | grep -vE " INFO - " | tail -15
 ```
 This must produce a results table with a non-zero trade count.
@@ -65,15 +72,20 @@ Confirm they do not overlap. You will be held to this split for the whole run.
 ls user_data/data/binanceusdm/futures/*-1h-funding_rate.feather | wc -l
 ```
 Must be 10. If it is 0, funding fees are silently zero and every backtest will
-overstate profit — see `.agent/ENVIRONMENT.md` gotcha #13 for the one-line fix.
+overstate profit. Verify and repair per `.agent/reference/data-download.md`
+(funding section) — a fresh 2026.6 download writes funding files at the right
+timeframe natively; the old manual copy repair is obsolete.
 
 Also confirm the canary run printed no
 `No history for <PAIR>, funding_rate, 1h found` warnings.
 
 ## DO NOT
 - Create or edit any strategy file
-- Run `freqtrade download-data`
-- Edit `configs/*.json` unless a check failed and you have named the exact gotcha
+- Run `freqtrade download-data` outside the verified commands in
+  `.agent/reference/data-download.md`
+- Edit `configs/strategies/<Name>.json` unless a check failed and you have
+  named the exact gotcha. **`configs/base.futures.json` is portfolio-wide** —
+  any change to it affects all nine strategies and requires user approval
 - Proceed to Phase 1 with any check failing
 
 ## Exit Criteria
@@ -101,6 +113,7 @@ Data check:    PASS/FAIL
 Notation check:PASS/FAIL
 Canary check:  PASS/FAIL
 Split check:   PASS/FAIL
+Funding check: PASS/FAIL
 ─────────────────────────
 VERDICT: PASS (proceed to Phase 1) / FAIL (reason)
 ```

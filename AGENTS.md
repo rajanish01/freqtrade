@@ -144,3 +144,13 @@ You run the mechanical loop yourself. You stop for judgement calls.
 | `.agent/prompts/backtest-postmortem.md` | Phase 4 verdict = FAIL |
 | `.agent/prompts/hyperopt-review.md` | Phase 5 results are in |
 | `.agent/prompts/freqai-feature-eng.md` | Phase 6 feature design |
+| `.agent/prompts/final-verdict.md` | kill criteria met, or 3 iterations burned — the terminal "why it failed" verdict |
+| `.agent/scripts/framework-check.sh` | Phase 0, or any result looks wrong — one-shot infra verification |
+
+Orchestrator skill: `.opencode/skills/freqtrade-strategy-productionizer/SKILL.md`
+wraps this entire workflow (boundaries, loop, screening gate, risk layer,
+journals, autonomy) — opencode loads it automatically on strategy-production
+tasks. `opencode.json` enforces the RED list mechanically: config.json and
+`user_data/config.json` are deny-read/deny-edit, library dirs are deny-edit,
+`freqtrade trade` asks unless it targets a `.dryrun.json`, `rm` of data is
+denied, git writes ask. Do not weaken these rules.

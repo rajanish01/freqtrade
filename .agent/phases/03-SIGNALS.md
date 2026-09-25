@@ -47,7 +47,7 @@ def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFram
 
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
-  --timerange 20250601-20250701 \
+  --timerange 20250601-20250701 --cache none \
   2>&1 | grep -vE " INFO - " | tail -25
 ```
 

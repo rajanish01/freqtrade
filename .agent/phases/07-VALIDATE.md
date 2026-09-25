@@ -22,9 +22,14 @@ for TR in 20220101-20220401 20220401-20220701 20220701-20221001 20221001-2023010
           20260101-20260401 20260401-20260709 ; do
   echo "=== $TR"
   freqtrade backtesting --config configs/strategies/$STRAT.json \
-    --timerange $TR 2>&1 | grep -E "Total profit %|Profit factor|Absolute Drawdown|Total/Daily Avg Trades"
+    --timerange $TR --cache none --enable-protections 2>&1 \
+    | grep -E "Total profit %|Profit factor|Absolute Drawdown|Total/Daily Avg Trades"
 done
 ```
+
+Base list: 18 quarters. One optional 19th quarter (20260709-20260923) exists
+on disk beyond the documented OOS end — run it only if the user approves the
+extension (see `ENVIRONMENT.md`); it is extra evidence, not a requirement.
 
 Failure conditions:
 - More than 2 **consecutive** quarters with profit factor < 1.0 -> regime vulnerability
@@ -43,6 +48,10 @@ backtest at -20%, optimal, and +20%.
 To vary a parameter without editing the class, edit the value in
 `user_data/strategies/<StrategyName>.json` (hyperopt's output file), run, then
 restore it. Record the original values before you start.
+If Phase 5 promoted the params to class defaults and the json was deleted, do
+NOT edit the class (forbidden above). Instead recreate a minimal
+`<StrategyName>.json` containing only the parameters under test — freqtrade
+merges it over the class defaults — run, then delete it again.
 
 Failure condition: profit factor drops below 1.0 at either ±20% -> brittle.
 A robust parameter sits on a plateau, not a spike.
@@ -51,7 +60,7 @@ A robust parameter sits on a plateau, not a spike.
 
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
-  --timerange 20220101-20260709 \
+  --timerange 20220101-20260709 --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -40
 ```
 Read the per-pair table.
@@ -60,16 +69,25 @@ Failure condition: fewer than 60% of pairs profitable, or a single pair
 contributing more than 50% of total profit (that is one lucky pair, not a
 strategy).
 
-### Test 4 — Cost sensitivity
+### Test 4 — Cost sensitivity (the realistic case)
 
-Re-run the full backtest with doubled fees to model slippage:
+Re-run the full backtest with doubled fees to model slippage. For 15m and 5m
+strategies run it at 1m detail too — the combination of 2x fees and realistic
+intra-candle exits is the honest worst case (for `LiquidationWickFade` this
+IS the real number, per its plan):
+
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
   --timerange 20220101-20260709 --fee 0.001 \
-  2>&1 | grep -vE " INFO - " | tail -30
+  --cache none --enable-protections 2>&1 | grep -vE " INFO - " | tail -30
+
+freqtrade backtesting --config configs/strategies/$STRAT.json \
+  --timerange 20220101-20260709 --fee 0.001 --timeframe-detail 1m \
+  --cache none --enable-protections 2>&1 | grep -vE " INFO - " | tail -30
 ```
 Failure condition: profit factor falls below 1.0 at 2x fees. That means the
-edge is smaller than real-world execution costs.
+edge is smaller than real-world execution costs. If the detail run cannot
+complete (memory), record SKIPPED with the reason — do not pretend it ran.
 
 ## DO NOT
 - Modify the strategy file
