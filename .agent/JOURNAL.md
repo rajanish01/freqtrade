@@ -171,3 +171,18 @@ Result:   User-approved full reset of the in-flight run: deleted
           permission deny rules. STATE.md reset to no active strategy.
 Decision: Framework is now the focus; portfolio execution (Part 5) starts on
           user go. BBRSIMeanReversion resumes from Phase 1 when picked up.
+
+## 2026-09-26 — FRAMEWORK — NOTE (framework-check verification + parser fixes)
+Strategy: portfolio-wide
+Command:  bash .agent/scripts/framework-check.sh (twice)
+Result:   First run 9 PASS / 1 FAIL — the FAIL was the script's trade-count
+          regex, not the env (funding check on the same run found 39/50
+          trades; the canary had run fine). freqtrade 2026.6 summary metrics
+          use `│` separators and lowercase `Absolute drawdown`. Two defects
+          fixed: framework-check.sh regex, and the `Absolute Drawdown` ->
+          `Absolute drawdown` grep in COMMANDS.md + phases/07-VALIDATE.md
+          walk-forward loops (it had been silently missing the drawdown line).
+          Second run: 10 PASS / 0 FAIL. Framework healthy.
+Decision: Framework hardening complete and committed to rj/develop
+          (67d581e71 + parser-fix commit). Local branches: only rj/develop
+          remains; rj/strategy/* deleted per user direction.

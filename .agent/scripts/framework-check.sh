@@ -66,7 +66,7 @@ fi
 mkdir -p "$CHECKDIR"
 CANARY_OUT=$("$FT" backtesting --config "$CFG" --timerange 20250601-20250701 \
   --cache none --export signals --backtest-directory "$CHECKDIR" 2>&1 || true)
-TRADES=$(echo "$CANARY_OUT" | grep -oE "Total/Daily Avg Trades *:? *[0-9]+" | grep -oE "[0-9]+" | tail -1)
+TRADES=$(echo "$CANARY_OUT" | grep -oE "Total/Daily Avg Trades[^0-9]*[0-9]+" | grep -oE "[0-9]+" | tail -1)
 if [ -n "$TRADES" ] && [ "$TRADES" -gt 0 ]; then
   ok "infra canary: $TRADES trades on 20250601-20250701"
 else

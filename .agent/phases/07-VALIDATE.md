@@ -23,7 +23,7 @@ for TR in 20220101-20220401 20220401-20220701 20220701-20221001 20221001-2023010
   echo "=== $TR"
   freqtrade backtesting --config configs/strategies/$STRAT.json \
     --timerange $TR --cache none --enable-protections 2>&1 \
-    | grep -E "Total profit %|Profit factor|Absolute Drawdown|Total/Daily Avg Trades"
+    | grep -E "Total profit %|Profit factor|Absolute drawdown|Total/Daily Avg Trades"
 done
 ```
 

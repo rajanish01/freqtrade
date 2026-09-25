@@ -168,7 +168,7 @@ for TR in 20220101-20220401 20220401-20220701 20220701-20221001 20221001-2023010
           20260101-20260401 20260401-20260709 ; do
   echo "=== $TR"
   freqtrade backtesting --config $CFG --timerange $TR --cache none --enable-protections 2>&1 \
-    | grep -E "Total profit %|Profit factor|Absolute Drawdown|Total/Daily Avg Trades"
+    | grep -E "Total profit %|Profit factor|Absolute drawdown|Total/Daily Avg Trades"
 done
 ```
 
