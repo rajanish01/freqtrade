@@ -1,0 +1,24 @@
+{
+    "_comment": "Alt/BTC ratio rotation gated by BTC 1h regime. BTC is DATA-ONLY here (informative pair) and is deliberately excluded from the whitelist — the self-ratio would be constant.",
+    "add_config_files": [
+        "../base.futures.json"
+    ],
+    "strategy": "RelativeStrengthBTC",
+    "timeframe": "15m",
+    "max_open_trades": 5,
+    "stake_amount": "unlimited",
+    "export": "signals",
+    "exchange": {
+        "pair_whitelist": [
+            "ETH/USDT:USDT",
+            "SOL/USDT:USDT",
+            "BNB/USDT:USDT",
+            "XRP/USDT:USDT",
+            "ADA/USDT:USDT",
+            "DOGE/USDT:USDT",
+            "AVAX/USDT:USDT",
+            "LINK/USDT:USDT",
+            "LTC/USDT:USDT"
+        ]
+    }
+}

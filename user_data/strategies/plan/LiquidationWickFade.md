@@ -1,7 +1,8 @@
 # LiquidationWickFade — Futures Strategy Plan
 ## FUTURES-NATIVE — has no spot equivalent
 
-Read `.agent/reference/futures-playbook.md` first. This file states only the deltas.
+Read `.agent/reference/futures-playbook.md` first. This file states the deltas
+PLUS every block the building agent needs (see `00-TEMPLATE.md`).
 
 The second futures-native plan, and the **only one that keeps the 5m
 timeframe**. That exemption is justified below.
@@ -28,7 +29,13 @@ Liquidation cascades are a consequence of leverage and maintenance margin. Spot
 markets have no liquidation engine — a spot holder in drawdown is never forced
 to sell. The entire mechanism is futures-specific.
 
----
+## Direction & symmetry claim
+
+**Both directions.** There is a genuine two-sided mechanism: downside cascades
+(long liquidations) and upside short squeezes (short liquidations). Both are
+forced flow. The asymmetry risk (squeezes can persist) is handled by the
+"recovery already begun" confirmation and the hard time-stop — and by the
+kill criterion comparing long vs short performance.
 
 ## Why 5m is justified here (and nowhere else)
 
@@ -43,10 +50,16 @@ This plan is the documented exception:
 - Entry frequency is low — this fires on tail events, not continuously.
 
 Data: 5m futures exists for all 10 pairs, 2022-01-01 onward (~475k candles/pair).
-Hyperopt on this plan will be the slowest. Consider restricting hyperopt to
-4 pairs, then validating on all 10.
+Hyperopt on this plan will be the slowest. Consider restricting hyperopt to 4
+pairs (`.agent/pair-lists/core-four.json`), then validating on all 10 — propose
+that at Phase 5, not before.
 
 ---
+
+## Data requirements
+
+OHLCV 5m, all 10 majors. 1m data present (required — the Phase-4
+`--timeframe-detail 1m` realism pass is the main arbiter for this plan).
 
 ## Indicators (5m)
 
@@ -60,13 +73,14 @@ Hyperopt on this plan will be the slowest. Consider restricting hyperopt to
 | ATR (14) | `ta.ATR(df, 14)` | `ind_atr_14` |
 | NATR (14) | `ta.NATR(df, 14)` | `ind_natr_14` — required, drives leverage |
 | Range vs ATR | `ind_range / ind_atr_14` | `ind_range_atr` |
+| RSI (14) | `ta.RSI(df, 14)` | `ind_rsi_14` — required by the exit logic |
 | EMA (200) | `ta.EMA(df, 200)` | `ind_ema_200` |
 
 Guard against divide-by-zero: `ind_range` is 0 on a flat candle. Compute wick
 fractions with an explicit `where(ind_range > 0, ..., 0)`.
 
-All three conditions must coincide — that combination is what distinguishes a
-liquidation cascade from ordinary volatility:
+All three event-shape conditions must coincide — that conjunction is what
+distinguishes a liquidation cascade from ordinary volatility:
 1. a large range relative to ATR,
 2. a wick that is most of that range (price rejected the level),
 3. volume far above normal (forced flow, not organic).
@@ -99,18 +113,20 @@ The `close` condition requires the snap-back to have **already begun** on the
 signal candle. Entering while price is still falling is catching the cascade
 mid-flight — that is how this strategy loses badly.
 
----
-
 ## Exit Logic
 
-Fast and mechanical. This is a scalp, not a position.
+Fast and mechanical. This is a scalp, not a position. Two exit channels:
 
-**Long:** `close >= entry + (opt_target_atr * ind_atr_14)` handled by ROI, OR
-`ind_rsi_14 > 60`, OR the time limit below.
-**Short:** mirrored.
+1. **`minimal_roi` ladder (primary):** {"0": 0.02, "15": 0.012, "45": 0.006,
+   "120": 0} — the 120-minute zero ROI is the time-stop: a cascade fade that
+   has not worked within two hours was not a cascade.
+2. **Momentum-spent signal exit (backstop):** **Long:** `ind_rsi_14 >
+   opt_rsi_exit` (default 60) — tag `rsi_spent`. **Short:** `ind_rsi_14 <
+   (100 - opt_rsi_exit)`.
 
 The dominant exit should be `minimal_roi`. If signal exits dominate, the ROI
-ladder is too slow for the mechanism.
+ladder is too slow for the mechanism — report that; do not weaken the entry
+conjunction to compensate.
 
 ---
 
@@ -127,6 +143,13 @@ Four parameters, all describing the *shape of the event*. None of them are
 price levels, which is why this plan should generalise across pairs better
 than the band strategies.
 
+### Hyperopt execution notes
+
+- `--analyze-per-epoch`: **NOT needed.** All indicators use fixed periods.
+- This is the slowest plan per epoch (5m x ~475k candles x 10 pairs). Keep
+  300 epochs on the full whitelist only if runtime allows; otherwise propose
+  the core-four pair restriction at Phase 5 (YELLOW).
+
 ---
 
 ## Risk Parameters (hardcoded — never optimise)
@@ -140,11 +163,33 @@ max_leverage_cap = 2.0
 ```
 
 Short ROI ladder measured in **minutes** — 120 minutes is the full timeout.
-A cascade fade that has not worked within two hours was not a cascade.
 
 Leverage capped at 2x: entering during peak volatility means NATR is high, so
 the volatility-targeting rule will already pull leverage toward 1x. That is
 correct and intended.
+
+### Risk verification (precomputed 2026-09-26; base: ratio 0.5, max_open_trades 5)
+
+| Check | Formula | Value | Verdict |
+|-------|---------|-------|---------|
+| K2 per-trade risk | 0.10 x 0.08 | 0.8% equity | <= 2% PASS — tightest per-trade risk in the portfolio (scalp profile) |
+| K7 liquidation headroom | 0.08/2 = 4.0% vs 1/2 = 50% | 12.5x margin | PASS |
+| K4 trailing giveback | trailing disabled | n/a | n/a |
+
+### Protections (5m candle counts — 24h = 288)
+```python
+@property
+def protections(self):
+    return [
+        {"method": "CooldownPeriod", "stop_duration_candles": 2},
+        {"method": "StoplossGuard", "lookback_period_candles": 288,
+         "trade_limit": 1, "stop_duration_candles": 288,
+         "only_per_pair": False, "only_per_side": False},
+        {"method": "MaxDrawdown", "lookback_period_candles": 6048,
+         "trade_limit": 5, "max_allowed_drawdown": 0.10,
+         "calculation_mode": "equity", "stop_duration_candles": 864},
+    ]
+```
 
 ## Strategy Configuration
 ```python
@@ -194,6 +239,17 @@ quarters is a kill signal even if the aggregate passes.
 
 ---
 
+## Phase map
+
+- **Phase 3 smoke (1 month):** tail-event strategy — a handful of trades is
+  expected; 0 trades in a calm month is not automatically a failure. Widen to
+  3 months before concluding the conjunction never fires.
+- **Phase 4:** the 1m-detail pass IS the headline here (candle-internal wick
+  recovery is exactly what 5m candles hide). Main-TF vs detail divergence is
+  expected; judge on detail.
+- **Phase 7:** read quarterly PF as a time series, not a distribution — decay
+  over calendar time is the kill signal (caveat 3).
+
 ## Expected behaviour
 
 **Works in:** high-volatility markets with frequent forced deleveraging.
@@ -207,3 +263,14 @@ edge; if it does, this is one lucky event, not a strategy.
 - Profit factor declining monotonically across Phase 7 quarters (mechanism decay)
 - Removing the best 3 trading days makes profit factor < 1.0
 - Fewer than 100 trades across the IS window on all 10 pairs
+
+## Changelog
+- 2026-09-26: Full template restructure. **Fixes:** (a) added RSI(14) to the
+  indicators table — the exit logic referenced `ind_rsi_14` / `opt_rsi_exit`
+  but RSI was never declared (would have crashed Phase 3 or silently deadened
+  the exit); (b) removed the stale `opt_target_atr` mention from the exit text
+  — it was never a declared parameter; the exit is the minimal_roi ladder plus
+  the RSI backstop, now stated explicitly with tags; (c) protections converted
+  to 5m candles (24h = 288); (d) risk verification, hyperopt notes (flag not
+  needed; core-four hyperopt restriction is a Phase-5 YELLOW proposal), and
+  phase map added. No parameter changes.

@@ -1,6 +1,7 @@
 # VWAPBandReversion — Futures Strategy Plan
 
-Read `.agent/reference/futures-playbook.md` first. This file states only the deltas.
+Read `.agent/reference/futures-playbook.md` first. This file states the deltas
+PLUS every block the building agent needs (see `00-TEMPLATE.md`).
 
 The third band strategy, kept because its anchor is **volume-weighted**. BB
 anchors on a simple moving average and Keltner on an EMA — both price-only.
@@ -16,9 +17,12 @@ scaled band reverts toward it. VWAP is the reference price institutions measure
 execution against, so it acts as a magnet in the absence of new information.
 
 **Why it should work:** VWAP is a real benchmark that real desks are graded on.
-That creates genuine flow toward it, unlike a arbitrary moving average.
+That creates genuine flow toward it, unlike an arbitrary moving average.
 
----
+## Direction & symmetry claim
+
+**Both directions.** Deviation from a mean is symmetric by construction. Short
+thresholds derived (`-z` / `+z` around the same `opt_band_z`).
 
 ## Futures deltas
 
@@ -43,6 +47,10 @@ Do not use a cumulative-since-inception VWAP — it drifts and is not stationary
 
 ---
 
+## Data requirements
+
+OHLCV 15m, all 10 majors. No informative timeframes, no funding reads.
+
 ## Indicators (15m)
 
 | Indicator | Method | Column |
@@ -58,14 +66,21 @@ Using a **z-score** rather than a raw band multiplier makes the threshold
 comparable across pairs and across volatility regimes. That matters here more
 than in the BB plan, because VWAP deviation scales with pair volatility.
 
+Warmup: rolling windows up to 200 (max `opt_vwap_period`) x2 stacked
+(deviation std reuses the same window) → `startup_candle_count = 250`. The
+z-score is NaN until both windows fill; entries must include
+`ind_vwap_z.notna()` defensively (NaN comparisons are False anyway, but be
+explicit).
+
 ---
 
 ## Entry Logic
 
 **Long:**
 ```
-ind_vwap_z < -opt_band_z            # default -1.5, stretched below VWAP
+ind_vwap_z < -opt_band_z            # default 1.5, stretched below VWAP
 ind_adx_14 < opt_adx_max            # default 25, not trending
+ind_vwap_z.notna()
 volume > 0
 ```
 tag: `vwap_below_band`
@@ -74,15 +89,14 @@ tag: `vwap_below_band`
 ```
 ind_vwap_z > opt_band_z
 ind_adx_14 < opt_adx_max
+ind_vwap_z.notna()
 volume > 0
 ```
 tag: `vwap_above_band`
 
----
-
 ## Exit Logic
 
-**Long:** `close > ind_vwap` (crossed back to the mean)
+**Long:** `close > ind_vwap` (crossed back to the mean) — tag `vwap_midline`
 **Short:** `close < ind_vwap`
 
 Structural exit — the trade thesis is "return to VWAP", so returning to VWAP
@@ -99,6 +113,14 @@ completes it. `minimal_roi` is the backstop, not the plan.
 | opt_adx_max | IntParameter | 15-40 | 25 | buy |
 
 Only three. This is the most parameter-frugal plan after BBRSI.
+
+### Hyperopt execution notes
+
+- **`--analyze-per-epoch` MANDATORY.** `opt_vwap_period` is used inside
+  `populate_indicators` (rolling VWAP + rolling std). Without the flag the
+  epochs optimise against default-period columns (gotcha #0c).
+- Budget: two stacked rolling computations re-run per epoch — this is the
+  second-slowest hyperopt of the 15m plans (SuperTrendBBCombo is worse).
 
 ---
 
@@ -118,6 +140,29 @@ stoploss**, which is a YELLOW change and interacts badly with dynamic leverage
 above. Only consider `use_custom_stoploss` after Phase 5 passes, and only with
 approval.
 
+### Risk verification (precomputed 2026-09-26; base: ratio 0.5, max_open_trades 5)
+
+| Check | Formula | Value | Verdict |
+|-------|---------|-------|---------|
+| K2 per-trade risk | 0.10 x 0.10 | 1.0% equity | <= 2% PASS |
+| K7 liquidation headroom | 0.10/3 = 3.3% vs 1/3 = 33.3% | 10x margin | PASS |
+| K4 trailing giveback | trailing disabled | n/a | n/a |
+
+### Protections (15m candle counts)
+```python
+@property
+def protections(self):
+    return [
+        {"method": "CooldownPeriod", "stop_duration_candles": 2},
+        {"method": "StoplossGuard", "lookback_period_candles": 96,
+         "trade_limit": 1, "stop_duration_candles": 96,
+         "only_per_pair": False, "only_per_side": False},
+        {"method": "MaxDrawdown", "lookback_period_candles": 2000,
+         "trade_limit": 5, "max_allowed_drawdown": 0.10,
+         "calculation_mode": "equity", "stop_duration_candles": 288},
+    ]
+```
+
 ## Strategy Configuration
 ```python
 INTERFACE_VERSION = 3
@@ -135,10 +180,17 @@ Config: `configs/strategies/VWAPBandReversion.json`
 `user_data/strategies/VWAPBandReversion.py` previously existed and **crashed
 the backtester** — it used the `dataframe.loc[(), [...]] = (...)` empty
 scaffold, which creates a `|V0` void column under pandas 3. It has since been
-deleted. Rebuild it from Phase 1 using the scaffold in
+deleted. Rebuild from Phase 1 using the scaffold in
 `.agent/phases/01-STRATEGY-SCAFFOLD.md`. Do not restore the old file.
 
 ---
+
+## Phase map
+
+- **Phase 3 smoke:** expect a healthy count (10-60/month); 0 trades usually
+  means the z-score went NaN — check warmup first.
+- **Phase 4:** headline gate is the family comparison — must beat
+  `BBRSIMeanReversion` on the same window (see kill criteria).
 
 ## Key patterns to learn
 
@@ -147,9 +199,9 @@ and comparable across pairs. Any band strategy trading a multi-pair whitelist
 should prefer it.
 
 **Volume-weighted anchor.** The reason this earns a slot next to two other band
-strategies. If it does not outperform them, that is a real finding: it means
-the volume weighting adds nothing at this timeframe, and the plan should be
-dropped rather than tuned.
+strategies. If it does not outperform them, that is a real finding: the volume
+weighting adds nothing at this timeframe, and the plan should be dropped rather
+than tuned.
 
 ---
 
@@ -164,3 +216,9 @@ dominated by a few prints.
 - Does not beat `BBRSIMeanReversion` on the same window -> the volume weighting
   adds nothing; drop this plan rather than tuning it further
 - Profit factor < 1.0 at 2x fees
+
+## Changelog
+- 2026-09-26: Full template restructure. Added explicit `.notna()` entry guard
+  (stacked rolling windows), **`--analyze-per-epoch` mandatory** note
+  (`opt_vwap_period` is inside `populate_indicators` — gotcha #0c), risk
+  verification, protections, phase map. No parameter changes.

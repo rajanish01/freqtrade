@@ -30,6 +30,16 @@ per-strategy journals, orchestrator skill, tool-level guardrails,
 `.agent/scripts/framework-check.sh`) lives on `rj/develop`. Future strategy
 branches fork from it.
 
+2026-09-26 blueprint overhaul (agent-run, user-approved): all plans
+restructured to `plan/00-TEMPLATE.md`; 3 plans added (10 DonchianATRBreakout,
+11 BBSqueezeBreakout, 12 RelativeStrengthBTC); scored research backlog at
+`plan/RESEARCH-BACKLOG.md`; plan-level bug fixes listed in
+`plan/INDEX.md` ("blueprint overhaul"); `BBRSIMeanReversion.json` config
+recreated early (the reset deleted it; Phase 0 sanctions recreation);
+framework review at `.agent/reports/framework-review-2026-09-26.md`.
+BBRSIMeanReversion restarts at Phase 1 with the plan's documented
+rejection-confirmed fallback ready as the Phase-3 fix.
+
 Pick the next strategy from `user_data/strategies/plan/INDEX.md`.
 Recommended order: `BBRSIMeanReversion` first (it is the control), then
 `SuperTrendBBCombo`, then the two futures-native plans.
@@ -48,7 +58,7 @@ funding_fees:       -
 
 ## Portfolio ledger
 
-Nine plans, none implemented yet. A plan is only real once it passes Phase 7.
+Twelve plans, none implemented yet. A plan is only real once it passes Phase 7.
 Terminal states: `DEAD` (verdict at `.agent/reports/<Name>/DEAD.md`) or
 `DEPLOYED` (`FINAL.md`). Cross-run summary: `.agent/reports/PORTFOLIO.md`.
 
@@ -63,6 +73,9 @@ Terminal states: `DEAD` (verdict at `.agent/reports/<Name>/DEAD.md`) or
 | 7 | ObeliskRSIRegime | 15m | yes | 0 | NOT_STARTED |
 | 8 | FundingSkewCarry | 1h | yes | 0 | NOT_STARTED |
 | 9 | LiquidationWickFade | 5m | yes | 0 | NOT_STARTED |
+| 10 | DonchianATRBreakout | 15m | yes | 0 | NOT_STARTED |
+| 11 | BBSqueezeBreakout | 15m | yes | 0 | NOT_STARTED |
+| 12 | RelativeStrengthBTC | 15m | yes | 0 | NOT_STARTED |
 
 ## Infra baseline (verified 2026-09-24, do not re-verify unless something breaks)
 

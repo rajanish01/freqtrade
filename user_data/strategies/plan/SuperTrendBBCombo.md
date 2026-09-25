@@ -1,6 +1,7 @@
 # SuperTrendBBCombo — Futures Strategy Plan
 
-Read `.agent/reference/futures-playbook.md` first. This file states only the deltas.
+Read `.agent/reference/futures-playbook.md` first. This file states the deltas
+PLUS every block the building agent needs (see `00-TEMPLATE.md`).
 
 The hybrid: **SuperTrend decides direction, Bollinger decides timing.** It is
 the only plan here that combines a trend filter with a mean-reversion entry,
@@ -19,7 +20,11 @@ or on a SuperTrend flip (thesis invalidated).
 band reversion — buying the lower band during a downtrend, over and over, all
 the way down.
 
----
+## Direction & symmetry claim
+
+**Both directions.** SuperTrend computes a bearish line and a direction flag
+natively — the short side is not an addition, it is half of an indicator that
+was being thrown away. Thresholds mirrored from longs.
 
 ## Futures deltas
 
@@ -30,10 +35,11 @@ the way down.
 | `can_short` | False | **True** |
 | Stoploss | (per original) | **-0.12** |
 
-SuperTrend already computes a bearish line and a direction flag. The short side
-is not an addition here; it is half of an indicator that was being thrown away.
-
 ---
+
+## Data requirements
+
+OHLCV 15m, all 10 majors. No informative timeframes.
 
 ## Indicators (15m)
 
@@ -61,10 +67,8 @@ dataframe['ind_st_dir']   = st[f'SUPERTd_{period}_{mult}']   # 1 bullish, -1 bea
 1. The suffix must match the *exact* float formatting of `mult`. A multiplier
    of `3.0` yields `SUPERTd_10_3.0`, not `SUPERTd_10_3`. Build the key from the
    same variables you passed in, never hardcode it.
-2. `opt_st_period` and `opt_st_mult` are used inside `populate_indicators`, so
-   SuperTrend is recomputed every hyperopt epoch. This is the slowest plan to
-   optimise. Budget accordingly, or fix the period and optimise only the
-   multiplier.
+2. `opt_st_period` and `opt_st_mult` are used inside `populate_indicators` —
+   see the mandatory hyperopt flag below.
 
 ---
 
@@ -93,16 +97,16 @@ tag: `st_bear_bb_rally`
 Use `ind_st_dir` rather than `close > ind_st_long`. The direction flag is
 unambiguous; the line comparison is NaN on the inactive side.
 
----
-
 ## Exit Logic
 
-**Long:** `ind_bb_pct > opt_bb_pct_exit` (default 0.85) OR `ind_st_dir == -1`
-**Short:** `ind_bb_pct < (1 - opt_bb_pct_exit)` OR `ind_st_dir == 1`
+**Long:** `ind_bb_pct > opt_bb_pct_exit` (default 0.85) — tag `bb_target`; OR
+`ind_st_dir == -1` — tag `st_flip`
+**Short:** `ind_bb_pct < (1 - opt_bb_pct_exit)` — tag `bb_target`; OR
+`ind_st_dir == 1` — tag `st_flip`
 
 The SuperTrend flip is a **structural exit**: the condition that justified the
-entry is gone, so leave regardless of P&L. Tag the two exit reasons separately
-so Phase 4 can show which one is doing the work.
+entry is gone, so leave regardless of P&L. The tags are separate on purpose —
+Phase 4 must show which exit is doing the work.
 
 ---
 
@@ -116,6 +120,14 @@ so Phase 4 can show which one is doing the work.
 | opt_rsi_entry | IntParameter | 25-45 | 40 | buy |
 | opt_min_bb_width | DecimalParameter | 0.005-0.04 | 0.015 | buy |
 | opt_bb_pct_exit | DecimalParameter | 0.75-0.95 | 0.85 | sell |
+
+### Hyperopt execution notes
+
+- **`--analyze-per-epoch` MANDATORY.** Both SuperTrend inputs are `opt_*` used
+  inside `populate_indicators`; without the flag, epochs optimise stale
+  default-SuperTrend columns (gotcha #0c). This is the slowest plan to
+  optimise. Budget accordingly, or fix `opt_st_period` at 10 and optimise only
+  the multiplier (halves the recompute cost).
 
 ---
 
@@ -132,6 +144,29 @@ max_leverage_cap = 3.0
 No trailing stop: the SuperTrend flip already serves as the dynamic exit.
 Adding a trailing stop on top would double up and cut winners early.
 
+### Risk verification (precomputed 2026-09-26; base: ratio 0.5, max_open_trades 5)
+
+| Check | Formula | Value | Verdict |
+|-------|---------|-------|---------|
+| K2 per-trade risk | 0.10 x 0.12 | 1.2% equity | <= 2% PASS |
+| K7 liquidation headroom | 0.12/3 = 4.0% vs 1/3 = 33.3% | 8x margin | PASS |
+| K4 trailing giveback | trailing disabled | n/a | n/a |
+
+### Protections (15m candle counts)
+```python
+@property
+def protections(self):
+    return [
+        {"method": "CooldownPeriod", "stop_duration_candles": 2},
+        {"method": "StoplossGuard", "lookback_period_candles": 96,
+         "trade_limit": 1, "stop_duration_candles": 96,
+         "only_per_pair": False, "only_per_side": False},
+        {"method": "MaxDrawdown", "lookback_period_candles": 2000,
+         "trade_limit": 5, "max_allowed_drawdown": 0.10,
+         "calculation_mode": "equity", "stop_duration_candles": 288},
+    ]
+```
+
 ## Strategy Configuration
 ```python
 INTERFACE_VERSION = 3
@@ -143,16 +178,23 @@ Config: `configs/strategies/SuperTrendBBCombo.json`
 
 ---
 
+## Phase map
+
+- **Phase 2:** verify pandas-ta column suffixes with print-once debug at
+  scaffold time (then remove the debug) — a wrong suffix is a silent KeyError
+  hours into hyperopt.
+- **Phase 4:** the `st_flip` vs `bb_target` exit split is the key diagnostic.
+- **Phase 5:** slowest hyperopt in the portfolio (`--analyze-per-epoch`).
+
 ## Key patterns to learn
 
-**Direction filter + timing trigger.** The most transferable idea in the whole
-collection. One indicator answers "which way am I allowed to trade", another
-answers "when". Keeping those jobs separate prevents the trend filter from also
-becoming an entry trigger.
+**Direction filter + timing trigger.** One indicator answers "which way am I
+allowed to trade", another answers "when". Keeping those jobs separate prevents
+the trend filter from also becoming an entry trigger.
 
 **Structural exit vs target exit.** Two exits with different meanings, tagged
-separately. If the SuperTrend-flip exit is where all the losses are, the trend
-filter is too slow and `opt_st_period` should come down.
+separately. If `st_flip` is where all the losses are, the trend filter is too
+slow and `opt_st_period` should come down.
 
 **Trap-aware library use.** The pandas-ta column-suffix issue is exactly the
 kind of thing that produces a silent `KeyError` mid-hyperopt, hours in.
@@ -173,3 +215,10 @@ whipsaw, and the fix is a longer `opt_st_period`, not a wider stoploss.
 - Does not beat `BBRSIMeanReversion` -> the trend filter adds nothing, and the
   extra complexity is not paying for itself
 - Profit factor < 1.0 at 2x fees
+
+## Changelog
+- 2026-09-26: Full template restructure. Made **`--analyze-per-epoch`
+  MANDATORY** explicit (prior text said "recomputed every epoch" — that only
+  happens with the flag; gotcha #0c). Added risk verification, protections,
+  phase map, separate exit tags for `bb_target` vs `st_flip`. No parameter
+  changes.

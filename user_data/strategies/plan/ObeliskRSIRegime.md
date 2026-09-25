@@ -1,6 +1,7 @@
 # ObeliskRSIRegime — Futures Strategy Plan
 
-Read `.agent/reference/futures-playbook.md` first. This file states only the deltas.
+Read `.agent/reference/futures-playbook.md` first. This file states the deltas
+PLUS every block the building agent needs (see `00-TEMPLATE.md`).
 
 The regime-switching plan. One signal, **two parameter sets**, selected by which
 side of the SMA200 price is on. Also the only plan using a custom time-ramped
@@ -19,7 +20,12 @@ Encode the regime explicitly rather than hoping one parameter set fits both.
 assumptions in bear markets — the single most common way a backtest that looked
 great in one regime dies in the next.
 
----
+## Direction & symmetry claim
+
+**Both directions** — the regime gate flips cleanly: above SMA200 take longs on
+RSI dips, below SMA200 take shorts on RSI spikes. The bear-regime long is
+dropped entirely (weakest part of the spot original; on futures the short side
+is available and strictly better than a counter-trend long).
 
 ## Futures deltas
 
@@ -30,11 +36,11 @@ great in one regime dies in the next.
 | `can_short` | False | **True** |
 | Stoploss ramp | -10% -> -2% | **-15% -> -4%** (leverage-adjusted) |
 
-In the futures version the regime does more work: above SMA200 take longs on
-RSI dips, below SMA200 take shorts on RSI spikes. The bear-regime long is
-dropped entirely — it was the weakest part of the original.
-
 ---
+
+## Data requirements
+
+OHLCV 15m, all 10 majors. SMA(200) on the strategy timeframe — no informative.
 
 ## Indicators (15m)
 
@@ -45,7 +51,8 @@ dropped entirely — it was the weakest part of the original.
 | Bull flag | `(close > ind_sma_200).astype(int)` | `ind_bull` |
 | NATR (14) | `ta.NATR(df, 14)` | `ind_natr_14` — required, drives leverage |
 
-Three real indicators. This is the second most frugal plan.
+Three real indicators. This is the second most frugal plan. SMA(200) needs
+200 candles + convergence buffer -> `startup_candle_count = 250`.
 
 ---
 
@@ -71,17 +78,14 @@ tag: `bear_rsi_spike`
 RSI passes the threshold, not every candle it stays there. A bare `<` in a
 sustained dump would re-enter on every single candle.
 
-**Deliberate omission:** no longs in the bear regime. The original had them with
-a stricter threshold; on futures the short side is available and strictly
-better than a counter-trend long. If you want to test bear-regime longs, that
-is a separate experiment with its own tag — not a default.
-
----
+**Deliberate omission:** no longs in the bear regime. If you want to test
+bear-regime longs, that is a separate experiment with its own tag — not a
+default.
 
 ## Exit Logic
 
-**BULL long:** `qtpylib.crossed_above(ind_rsi_14, opt_bull_rsi_exit)` (default 65)
-**BEAR short:** `qtpylib.crossed_below(ind_rsi_14, opt_bear_rsi_exit)` (default 35)
+**BULL long:** `qtpylib.crossed_above(ind_rsi_14, opt_bull_rsi_exit)` (default 65) — tag `bull_rsi_exit`
+**BEAR short:** `qtpylib.crossed_below(ind_rsi_14, opt_bear_rsi_exit)` (default 35) — tag `bear_rsi_exit`
 
 ---
 
@@ -103,12 +107,12 @@ def custom_stoploss(self, pair, trade, current_time, current_rate,
 
 Rules:
 - Return a **negative** ratio. Returning a positive value silently disables it.
+  Read `.agent/reference/callbacks-reference.md` before Phase 1 on this plan.
 - `stoploss = -0.15` must still be declared at class level as the hard floor.
 - `opt_ramp_minutes` is the one risk-adjacent value allowed in hyperopt here,
   because it controls *timing*, not loss size. Both ends of the ramp are fixed.
-- This interacts with dynamic leverage: at 2x, -15% is a 7.5% price move
-  tightening to 2%. Verify against `futures-playbook.md` §4 before changing
-  either end.
+- Interacts with dynamic leverage: at 2x, -15% is a 7.5% price move tightening
+  to 2%. Verify against `futures-playbook.md` §4 before changing either end.
 
 ---
 
@@ -122,6 +126,12 @@ Rules:
 | opt_bear_rsi_exit | IntParameter | 20-45 | 35 | sell |
 | opt_ramp_minutes | IntParameter | 60-1440 | 360 | sell |
 
+### Hyperopt execution notes
+
+- `--analyze-per-epoch`: **NOT needed.** All indicators use fixed periods;
+  `opt_ramp_minutes` is a stoploss *timing* parameter read per-trade, not an
+  indicator input.
+
 ---
 
 ## Risk Parameters (hardcoded — never optimise)
@@ -132,6 +142,30 @@ minimal_roi = {"0": 0.05, "120": 0.02, "360": 0}
 startup_candle_count = 250     # SMA200 + buffer
 target_vol_pct = 0.5
 max_leverage_cap = 2.0
+```
+
+### Risk verification (precomputed 2026-09-26; base: ratio 0.5, max_open_trades 5)
+
+| Check | Formula | Value | Verdict |
+|-------|---------|-------|---------|
+| K2 per-trade risk | 0.10 x 0.15 (worst case, ramp start) | 1.5% equity | <= 2% PASS |
+| K7 liquidation headroom | 0.15/2 = 7.5% vs 1/2 = 50% | 6.7x margin | PASS |
+| K4 trailing giveback | trailing disabled; ramp is the dynamic stop | n/a | n/a |
+| Custom-stop rule | returns negative ratio; class floor -0.15 declared | verified at Phase 1 | PASS |
+
+### Protections (15m candle counts)
+```python
+@property
+def protections(self):
+    return [
+        {"method": "CooldownPeriod", "stop_duration_candles": 2},
+        {"method": "StoplossGuard", "lookback_period_candles": 96,
+         "trade_limit": 1, "stop_duration_candles": 96,
+         "only_per_pair": False, "only_per_side": False},
+        {"method": "MaxDrawdown", "lookback_period_candles": 2000,
+         "trade_limit": 5, "max_allowed_drawdown": 0.10,
+         "calculation_mode": "equity", "stop_duration_candles": 288},
+    ]
 ```
 
 ## Strategy Configuration
@@ -146,18 +180,27 @@ Config: `configs/strategies/ObeliskRSIRegime.json`
 
 ---
 
+## Phase map
+
+- **Phase 4:** report per-regime trade counts (`bull_rsi_dip` vs
+  `bear_rsi_spike`) up front — see "Watch for" below.
+- **Phase 4 extra experiment (allowed within one iteration):** re-run with the
+  custom stoploss disabled vs enabled on the same window; keep whichever wins.
+  This A/B is written into the plan because "the ramp must beat the fixed stop"
+  is a kill criterion.
+- **Phase 7:** oscillation around the SMA200 is the expected losing regime —
+  read the quarterly attribution for exactly that.
+
 ## Key patterns to learn
 
 **Explicit regime switching.** Two parameter sets under one roof, selected by a
 slow indicator. The most direct defence against anti-pattern #3 (regime
-overfitting) available without machine learning.
+overfitting) without machine learning.
 
 **Cross vs level.** `crossed_below(rsi, 35)` fires once per excursion;
 `rsi < 35` fires continuously. For entries you almost always want the cross.
 
-**Time-ramped stop.** Encodes "this trade had a thesis with a time horizon". If
-the move has not happened in six hours, the setup is stale and the remaining
-risk is not worth holding.
+**Time-ramped stop.** Encodes "this trade had a thesis with a time horizon".
 
 ---
 
@@ -177,3 +220,9 @@ Phase 7 will not have exercised it.
 - The custom stoploss underperforms a plain fixed stop -> delete the ramp,
   keep the simpler version
 - More than 2 consecutive losing quarters in Phase 7
+
+## Changelog
+- 2026-09-26: Full template restructure. Added risk verification (ramp worst
+  case = ramp start -0.15), protections, hyperopt-flag note (not needed),
+  the stoploss A/B as an explicit Phase-4 experiment, phase map. Exit tags
+  named. No parameter changes.
