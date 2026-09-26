@@ -8,9 +8,9 @@ the spread for immediate fills; the edge is small and dies in trends.
 Plan: user_data/strategies/plan/BBRSIMeanReversion.md.
 """
 
-from math import isfinite
-
+import talib.abstract as ta
 from pandas import DataFrame
+from technical import qtpylib
 
 from freqtrade.strategy import DecimalParameter, IntParameter, IStrategy
 
@@ -84,6 +84,20 @@ class BBRSIMeanReversion(IStrategy):
         return float(max(1.0, min(lev, self.max_leverage_cap, max_leverage)))
 
     def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        bb = qtpylib.bollinger_bands(qtpylib.typical_price(dataframe), 20, 2)
+        dataframe["ind_bb_lower"] = bb["lower"]
+        dataframe["ind_bb_mid"] = bb["mid"]
+        dataframe["ind_bb_upper"] = bb["upper"]
+        dataframe["ind_bb_width"] = (
+            dataframe["ind_bb_upper"] - dataframe["ind_bb_lower"]
+        ) / dataframe["ind_bb_mid"]
+        dataframe["ind_bb_pct"] = (
+            dataframe["close"] - dataframe["ind_bb_lower"]
+        ) / (dataframe["ind_bb_upper"] - dataframe["ind_bb_lower"])
+        dataframe["ind_rsi_14"] = ta.RSI(dataframe, timeperiod=14)
+        dataframe["ind_mfi_14"] = ta.MFI(dataframe, timeperiod=14)
+        dataframe["ind_vol_sma_20"] = dataframe["volume"].rolling(20).mean()
+        dataframe["ind_natr_14"] = ta.NATR(dataframe, timeperiod=14)
         return dataframe
 
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:

@@ -44,3 +44,18 @@ Result:   Strategy OK (4 buy + 1 sell params, hyperoptable). Smoke: 0 trades,
             MaxDrawdown 2000/5/10%/288
 Decision: Phase 1 PASS. No risk violations. Proceed to Phase 2 (indicators).
 
+## 2026-09-26 — Phase 2 INDICATORS — PASS
+Command:  smoke backtest 20250601-20250701 --cache none + recursive-analysis 20250101-20250701
+Result:   Smoke: 0 trades (correct pre-signals), exit 0, no errors.
+          recursive-analysis: ALL indicators 0.000% drift at every history
+          length (199/200/399/499/999/1999), including the strategy's 200.
+          Indicators: BB(20,2) qtpylib -> ind_bb_lower/mid/upper; BB width and
+          BB pct derived; RSI(14) ta -> ind_rsi_14; MFI(14) ta -> ind_mfi_14;
+          Volume SMA(20) rolling -> ind_vol_sma_20; NATR(14) ta -> ind_natr_14.
+          startup_candle_count 200 (max lookback 20 -> floor 70; plan value
+          200 exceeds floor and validates clean).
+Decision: Phase 2 PASS. All indicators catalog-approved, no redundancy
+          (NATR is the leverage driver per futures-playbook §7). Entry/exit
+          untouched. Proceed to Phase 3 (signals).
+
+

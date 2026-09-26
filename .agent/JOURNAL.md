@@ -208,3 +208,11 @@ Result:   OK (4 buy + 1 sell params); smoke 0 trades, exit 0, no errors.
           Risk layer re-verified: K2 1.2% (<=2%), K7 4%/33.3% (PASS),
           K4 0.01<=0.01 (boundary), ROI precedes trailing. Protections 15m.
 Decision: Phase 1 PASS. Proceed to Phase 2.
+
+## 2026-09-26 — Phase 2 INDICATORS — PASS
+Strategy: BBRSIMeanReversion
+Command:  smoke 20250601-20250701 + recursive-analysis 20250101-20250701
+Result:   Smoke 0 trades, exit 0. recursive-analysis: 0.000% drift on all
+          indicators at every length incl. 200. 9 columns from 7 indicators,
+          all catalog-approved.
+Decision: Phase 2 PASS. Proceed to Phase 3.
