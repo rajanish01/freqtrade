@@ -269,3 +269,14 @@ Result:   Three refinements applied: (1) Phase-1 lint step — pyflakes 4.0.0
           ways in the BBRSI run). gh CLI 2.101.0 installed (binary, no sudo).
 Decision: Framework tightened from the first run's observations without
           loosening discipline. Next: commit, push branch, PR to rj/develop.
+
+## 2026-09-26 — PR TO rj/develop — DONE
+Strategy: portfolio-wide framework work + BBRSIMeanReversion run record
+Command:  gh 2.101.0 (binary, ~/.local/bin) auth (user, device flow) + git push -u origin rj/strategy/BBRSIMeanReversion + gh pr create --base rj/develop --body-file
+Result:   PR #3: https://github.com/rajanish01/freqtrade/pull/3 —
+          "First strategy run: BBRSIMeanReversion DEAD (clean postmortem) +
+          framework refinements". Base rj/develop, head rj/strategy/BBRSIMeanReversion,
+          8 commits (R2-R5 + canary fallback, phases 0-4 + DEAD verdict,
+          3 refinements). First gh pr create failed on shell quoting of the
+          long --body; fixed with --body-file.
+Decision: Awaiting user review/merge. Next strategy is a separate decision.
