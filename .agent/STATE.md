@@ -4,16 +4,16 @@ The agent rewrites this file at the end of every phase and every fix iteration.
 Keep it short. This is the first thing read at the start of a session.
 
 ```yaml
-active_strategy:    (none — pick from user_data/strategies/plan/INDEX.md)
-strategy_file:      (none)
-plan_file:          (none)
-config:             (none yet — created at Phase 0/1 as configs/strategies/<Name>.json)
-current_phase:      0
+active_strategy:    BBRSIMeanReversion
+strategy_file:      user_data/strategies/BBRSIMeanReversion.py (created at Phase 1)
+plan_file:          user_data/strategies/plan/BBRSIMeanReversion.md
+config:             configs/strategies/BBRSIMeanReversion.json
+current_phase:      1
 phase_status:       NOT_STARTED     # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
 iteration:          0               # fix attempts within current_phase (max 3)
 freqai_enabled:     false
-branch:             rj/develop      # framework branch; create rj/strategy/<Name> per strategy
-journal:            (created at Phase 0 as .agent/reports/<Name>/journal.md)
+branch:             rj/strategy/BBRSIMeanReversion  # forked from rj/develop 2026-09-26
+journal:            .agent/reports/BBRSIMeanReversion/journal.md
 ```
 
 Reset on 2026-09-26 (user-approved full reset): the in-progress BBRSIMeanReversion
@@ -47,13 +47,13 @@ Recommended order: `BBRSIMeanReversion` first (it is the control), then
 ## Last verified result
 
 ```yaml
-command:            (none run yet)
-timerange:          -
-trades:             -
-profit_factor:      -
-max_drawdown_pct:   -
-sharpe:             -
-funding_fees:       -
+command:            freqtrade backtesting --config configs/strategies/SmokeTestStrategy.json --timerange 20250601-20250701 --cache none  (infra canary — not the strategy)
+timerange:          20250601-20250701
+trades:             50
+profit_factor:      n/a (canary; total -3.95%)
+max_drawdown_pct:   6.57
+sharpe:             -4.13
+funding_fees:       applied, 0 warnings
 ```
 
 ## Portfolio ledger
@@ -64,7 +64,7 @@ Terminal states: `DEAD` (verdict at `.agent/reports/<Name>/DEAD.md`) or
 
 | # | Strategy | TF | Short | Phase | Status |
 |---|----------|-----|-------|-------|--------|
-| 1 | BBRSIMeanReversion | 15m | yes | 0 | NOT_STARTED |
+| 1 | BBRSIMeanReversion | 15m | yes | 0 | PASS |
 | 2 | KeltnerATRReversion | 15m | yes | 0 | NOT_STARTED |
 | 3 | VWAPBandReversion | 15m | yes | 0 | NOT_STARTED |
 | 4 | EWODipHunter | 15m | no | 0 | NOT_STARTED |

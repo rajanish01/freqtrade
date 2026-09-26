@@ -186,3 +186,17 @@ Result:   First run 9 PASS / 1 FAIL — the FAIL was the script's trade-count
 Decision: Framework hardening complete and committed to rj/develop
           (67d581e71 + parser-fix commit). Local branches: only rj/develop
           remains; rj/strategy/* deleted per user direction.
+
+## 2026-09-26 — Phase 0 DATA-READINESS — PASS
+Strategy: BBRSIMeanReversion
+Command:  list-data + list-strategies + canary (SmokeTestStrategy config) + funding count
+Result:   10/10 pairs 15m+1m, 20220101-20260923. Exactly 2 configs loaded.
+          Canary 50 trades, -3.95%, 0 funding warnings. Funding files 10.
+          IS 20220101-20250630 / OOS 20250701-20260709 stated.
+Decision: Phase 0 PASS. Branch rj/strategy/BBRSIMeanReversion forked from
+          rj/develop. Framework touch-ups applied pre-Phase-0: review
+          recommendations R2-R5 + NEW finding F7 — Phase 0 Check 3 canary now
+          falls back to SmokeTestStrategy.json on fresh builds (the strategy's
+          own config cannot load before Phase 1 scaffolds the .py). Also
+          noted: venv activation does not persist across parallel tool calls
+          (ENVIRONMENT.md runtime updated). Proceed to Phase 1.
