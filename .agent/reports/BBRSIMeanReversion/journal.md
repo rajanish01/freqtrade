@@ -73,5 +73,24 @@ Decision: Trade count in sane band (1-200) though above the plan's rough
           often than the plan author guessed. Not a gate failure; Phase 4
           decides. Phase 3 PASS, proceed to Phase 4.
 
+## 2026-09-26 — Phase 4 BACKTEST — FAIL (iter 1)
+Command:  IS 20220101-20250630 --enable-protections --cache none --breakdown
+          month + lookahead/recursive + backtesting-analysis + 1m detail
+          (reduced: SOL/ETH/DOGE, 6 months)
+Result:   PF 0.61, -81.02%, DD 81.33%, Sharpe -2.48, 4567 trades, 0/10 pairs
+          profitable. Bias checks CLEAN. 70.6% win rate, K4 3.85x FAIL.
+          Stoploss: 318 trades, avg -12.1%, 76% of gross loss (-1602 USDT).
+          roi exits: 3762 trades, +1238.5 USDT (median +0.999%). rsi_exit:
+          416 trades, -497 USDT (avg -1.25% — captures nothing). Long -38.50%
+          / short -42.52%. Funding 7.58 USDT (~0.6% of gross wins), lev avg
+          1.197x. 42/43 months negative. 1m detail confirms (-20.44%).
+          Reproduces the prior v1 run digit-for-digit (same 318 stop-loss
+          count, K4 3.9x). Full analysis: phase4-iter1.md.
+Decision: Postmortem: root cause = knife-catch entry fires on the falling
+          knife; 7% of entries cost 76% of gross loss. Hypothesis UNDETERMINED
+          — the pre-approved rejection-confirmed entry decides it. Re-enter
+          Phase 3 with the rejection-confirmed entry (pre-approved in-plan).
+          If it fails the gates again, kill criteria met -> DEAD.
+
 
 

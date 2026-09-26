@@ -8,9 +8,9 @@ active_strategy:    BBRSIMeanReversion
 strategy_file:      user_data/strategies/BBRSIMeanReversion.py (created at Phase 1)
 plan_file:          user_data/strategies/plan/BBRSIMeanReversion.md
 config:             configs/strategies/BBRSIMeanReversion.json
-current_phase:      4
-phase_status:       NOT_STARTED     # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
-iteration:          0               # fix attempts within current_phase (max 3)
+current_phase:      3
+phase_status:       IN_PROGRESS     # re-entered with pre-approved rejection-confirmed entry
+iteration:          1               # fix attempts within current_phase (max 3)
 freqai_enabled:     false
 branch:             rj/strategy/BBRSIMeanReversion  # forked from rj/develop 2026-09-26
 journal:            .agent/reports/BBRSIMeanReversion/journal.md

@@ -227,3 +227,16 @@ Result:   First run caught leverage NameError('isfinite') — Phase 2 import
 Decision: Phase 3 PASS (count in sane band 1-200, above plan's rough 5-40).
           Proceed to Phase 4. Gotcha #1 annotated (tuple-assign is the only
           broken form; scalar-assign verified safe on empty masks).
+
+## 2026-09-26 — Phase 4 BACKTEST — FAIL (iter 1)
+Strategy: BBRSIMeanReversion
+Command:  IS 20220101-20250630 --enable-protections --cache none --breakdown
+          month + bias checks + backtesting-analysis + reduced 1m detail
+Result:   PF 0.61, -81.02%, DD 81.33%, Sharpe -2.48, 4567 trades, 0/10
+          pairs. K4 3.85x FAIL. Stoploss 318 trades avg -12.1% = 76% of
+          gross loss; roi exits +1238.5; rsi_exit -497 (captures nothing).
+          Funding 7.58 USDT (0.6% of gross wins). Bias CLEAN. Reproduces the
+          prior v1 failure digit-for-digit.
+Decision: Postmortem phase4-iter1.md: knife-catch entry is the root cause;
+          hypothesis UNDETERMINED. Re-enter Phase 3 with the pre-approved
+          rejection-confirmed entry. If it fails gates again -> DEAD.
