@@ -17,6 +17,8 @@ Last verified: 2026-09-24
 | ccxt | 4.5.61 |
 | freqtrade | 2026.6 (this checkout, bleeding-edge) |
 | venv | `.venv` — activate with `source .venv/bin/activate` **per command**: activation does NOT persist across parallel tool calls, so always prefix `source .venv/bin/activate && <cmd>` |
+| pyflakes | 4.0.0 (venv, installed 2026-09-26) — Phase-1 lint: `python -m pyflakes user_data/strategies/<Name>.py`; catches undefined names (dropped-import class) that `list-strategies` and `py_compile` miss |
+| gh CLI | 2.101.0 at `~/.local/bin/gh` (installed 2026-09-26, binary — no sudo on this box); needs `gh auth login` before PR creation |
 | `timeout` cmd | Linux shell, available; note the bash tool kills its process group on timeout — use `setsid` for long downloads (see data-download.md) |
 
 ## Agent model

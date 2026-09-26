@@ -254,3 +254,18 @@ Decision: Kill criteria met (PF < 1.2 after tuning rounds) + user's
           .agent/reports/BBRSIMeanReversion/DEAD.md. Strategy file + config
           deleted. LESSON: a +0.2% median reversion win cannot clear a 0.1%
           round-trip cost floor at 15m — binds band-family plans 2, 3, 11.
+
+## 2026-09-26 — FRAMEWORK REFINEMENTS (from first strategy run) — NOTE
+Strategy: portfolio-wide framework work (no strategy run)
+Command:  pip install pyflakes + gh binary install to ~/.local/bin + file edits
+Result:   Three refinements applied: (1) Phase-1 lint step — pyflakes 4.0.0
+          catches undefined names (the dropped-isfinite class surfaces as a
+          silent per-entry NameError + 1x leverage fallback; list-strategies
+          and py_compile miss it); (2) Phase-4 1m-detail pass now scales to
+          what it can decide — reduced window when main-TF gates already
+          FAIL, full window when they PASS (the full 3.5y pass is OOM-prone
+          and cannot rescue a decided verdict); (3) stoploss-share gate
+          clarified as gross-LOSS share (count 1.3% vs loss 22% read opposite
+          ways in the BBRSI run). gh CLI 2.101.0 installed (binary, no sudo).
+Decision: Framework tightened from the first run's observations without
+          loosening discipline. Next: commit, push branch, PR to rj/develop.

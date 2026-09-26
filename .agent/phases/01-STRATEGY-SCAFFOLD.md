@@ -26,6 +26,7 @@ Structure, no logic. The file must contain:
 - `populate_entry_trend()` / `populate_exit_trend()` using the empty scaffold below
 - Hyperopt parameter declarations as class attributes, `opt_` prefix,
   one per tunable value named in the strategy idea
+- Run the lint check (see Exit Criteria) before the smoke backtest
 
 ## Risk layer — verify and record at scaffold time
 
@@ -72,6 +73,12 @@ dataframe.loc[(), ['enter_long', 'enter_tag']] = (1, 'enter_long')   # BROKEN
 
 ## Exit Criteria
 - [ ] File exists at `user_data/strategies/<StrategyName>.py`
+- [ ] Lint clean — no undefined names:
+      `source .venv/bin/activate && python -m pyflakes user_data/strategies/<StrategyName>.py`
+      (a dropped import surfaces only as a silent per-entry NameError and a 1x
+      leverage fallback at trade time; `list-strategies` imports the module but
+      does NOT catch it, and `py_compile` is syntax-only. Found on the
+      BBRSIMeanReversion run 2026-09-26.)
 - [ ] `freqtrade list-strategies --config configs/strategies/$STRAT.json` shows the
       strategy with status `OK`
 - [ ] Smoke backtest runs clean and reports 0 trades:

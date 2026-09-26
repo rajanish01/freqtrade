@@ -118,7 +118,7 @@ Phase 4 / Phase 5-OOS gates (all must pass):
 | Total trades | >= 100 |
 | Sharpe (daily) | > 0.5 |
 | Profitable pairs | >= 60% |
-| Stoploss share of exits | < 50% |
+| Stoploss share of exits | < 50% of gross **loss** (trade-count share is reported alongside; loss-share is the gate — count 1.3% vs loss 22% read opposite ways, BBRSIMeanReversion 2026-09-26) |
 | Payoff ratio (Kotegawa K4) | avg_loss < 3 x avg_win |
 
 Phase 7 robustness gates:
