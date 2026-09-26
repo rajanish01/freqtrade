@@ -216,3 +216,14 @@ Result:   Smoke 0 trades, exit 0. recursive-analysis: 0.000% drift on all
           indicators at every length incl. 200. 9 columns from 7 indicators,
           all catalog-approved.
 Decision: Phase 2 PASS. Proceed to Phase 3.
+
+## 2026-09-26 — Phase 3 SIGNALS — PASS (iter 1: import bug fixed)
+Strategy: BBRSIMeanReversion
+Command:  smoke backtest 20250601-20250701 --cache none (x2)
+Result:   First run caught leverage NameError('isfinite') — Phase 2 import
+          edit had dropped `from math import isfinite`; freqtrade fell back
+          to 1x silently. Fixed, re-run: 170 trades, -6.76%, 70.0% win,
+          DD 9.20%, 0 leverage errors.
+Decision: Phase 3 PASS (count in sane band 1-200, above plan's rough 5-40).
+          Proceed to Phase 4. Gotcha #1 annotated (tuple-assign is the only
+          broken form; scalar-assign verified safe on empty masks).

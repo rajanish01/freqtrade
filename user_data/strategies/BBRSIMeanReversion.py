@@ -9,6 +9,8 @@ Plan: user_data/strategies/plan/BBRSIMeanReversion.md.
 """
 
 import talib.abstract as ta
+from math import isfinite
+
 from pandas import DataFrame
 from technical import qtpylib
 
@@ -103,9 +105,45 @@ class BBRSIMeanReversion(IStrategy):
     def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, "enter_long"] = 0
         dataframe.loc[:, "enter_short"] = 0
+        dataframe.loc[:, "enter_tag"] = ""
+
+        vol_ok = (dataframe["volume"] > 0) & (
+            dataframe["volume"]
+            > dataframe["ind_vol_sma_20"] * self.opt_min_vol_ratio.value
+        )
+        width_ok = dataframe["ind_bb_width"] > self.opt_min_bb_width.value
+
+        long_cond = (
+            (dataframe["close"] < dataframe["ind_bb_lower"])
+            & (dataframe["ind_rsi_14"] < self.opt_rsi_entry.value)
+            & (dataframe["ind_mfi_14"] < self.opt_mfi_entry.value)
+            & width_ok
+            & vol_ok
+        )
+        dataframe.loc[long_cond, "enter_long"] = 1
+        dataframe.loc[long_cond, "enter_tag"] = "bb_lower_reversion"
+
+        short_cond = (
+            (dataframe["close"] > dataframe["ind_bb_upper"])
+            & (dataframe["ind_rsi_14"] > (100 - self.opt_rsi_entry.value))
+            & (dataframe["ind_mfi_14"] > (100 - self.opt_mfi_entry.value))
+            & width_ok
+            & vol_ok
+        )
+        dataframe.loc[short_cond, "enter_short"] = 1
+        dataframe.loc[short_cond, "enter_tag"] = "bb_upper_reversion"
         return dataframe
 
     def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
         dataframe.loc[:, "exit_long"] = 0
         dataframe.loc[:, "exit_short"] = 0
+        dataframe.loc[:, "exit_tag"] = ""
+
+        long_exit = dataframe["ind_rsi_14"] > self.opt_rsi_exit.value
+        dataframe.loc[long_exit, "exit_long"] = 1
+        dataframe.loc[long_exit, "exit_tag"] = "rsi_exit"
+
+        short_exit = dataframe["ind_rsi_14"] < (100 - self.opt_rsi_exit.value)
+        dataframe.loc[short_exit, "exit_short"] = 1
+        dataframe.loc[short_exit, "exit_tag"] = "rsi_exit"
         return dataframe

@@ -186,6 +186,12 @@ It fails deep inside `backtesting.py` with
 `AssertionError: Something has gone wrong, please report a bug at pandas`.
 The message names pandas, but **the bug is in the strategy**.
 
+**Verified 2026-09-26 (pandas 3.0.3):** the crash is specific to the
+tuple-assign form above. The scalar-assign form is safe even with an empty
+mask and a brand-new column — `df.loc[empty_mask, 'newcol'] = 'x'` produces a
+proper `str` column, no exception. Initialise-then-assign is still the
+mandated style (readable, and immune either way).
+
 Correct empty scaffold:
 ```python
 dataframe.loc[:, 'enter_long'] = 0

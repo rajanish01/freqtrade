@@ -58,4 +58,20 @@ Decision: Phase 2 PASS. All indicators catalog-approved, no redundancy
           (NATR is the leverage driver per futures-playbook §7). Entry/exit
           untouched. Proceed to Phase 3 (signals).
 
+## 2026-09-26 — Phase 3 SIGNALS — PASS (iter 1: import bug fixed)
+Command:  smoke backtest 20250601-20250701 --cache none (x2)
+Result:   First run: 164 trades but leverage callback raised
+          NameError('isfinite') per entry — the Phase 2 import edit had
+          dropped `from math import isfinite`; freqtrade fell back to 1x.
+          Fixed, re-run: 170 trades, -6.76%, 70.0% win, avg duration 15:23,
+          DD 9.20%. 0 leverage errors. Tag assignments verified safe on
+          pandas 3.0.3 (conditional scalar-assign on new cols with empty
+          masks does NOT produce void dtype — only the tuple-assign form
+          does; gotcha #1 annotated).
+Decision: Trade count in sane band (1-200) though above the plan's rough
+          5-40 expectation — the RSI+MFI+width+volume conjunction fires more
+          often than the plan author guessed. Not a gate failure; Phase 4
+          decides. Phase 3 PASS, proceed to Phase 4.
+
+
 

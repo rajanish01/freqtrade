@@ -8,7 +8,7 @@ active_strategy:    BBRSIMeanReversion
 strategy_file:      user_data/strategies/BBRSIMeanReversion.py (created at Phase 1)
 plan_file:          user_data/strategies/plan/BBRSIMeanReversion.md
 config:             configs/strategies/BBRSIMeanReversion.json
-current_phase:      3
+current_phase:      4
 phase_status:       NOT_STARTED     # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
 iteration:          0               # fix attempts within current_phase (max 3)
 freqai_enabled:     false
@@ -47,13 +47,13 @@ Recommended order: `BBRSIMeanReversion` first (it is the control), then
 ## Last verified result
 
 ```yaml
-command:            freqtrade backtesting --config configs/strategies/SmokeTestStrategy.json --timerange 20250601-20250701 --cache none  (infra canary — not the strategy)
+command:            freqtrade backtesting --config configs/strategies/BBRSIMeanReversion.json --timerange 20250601-20250701 --cache none  (phase 3 smoke)
 timerange:          20250601-20250701
-trades:             50
-profit_factor:      n/a (canary; total -3.95%)
-max_drawdown_pct:   6.57
-sharpe:             -4.13
-funding_fees:       applied, 0 warnings
+trades:             170
+profit_factor:      n/a (smoke; total -6.76%)
+max_drawdown_pct:   9.20
+sharpe:             -6.74 (wallet, prior smoke run; not the verdict)
+funding_fees:       applied
 ```
 
 ## Portfolio ledger
