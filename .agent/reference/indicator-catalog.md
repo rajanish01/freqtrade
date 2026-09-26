@@ -19,6 +19,12 @@ from technical import qtpylib
 | PLUS_DI / MINUS_DI | ta-lib | period | `ind_plus_di_{p}` / `ind_minus_di_{p}` |
 | SAR | ta-lib | accel, max | `ind_sar` |
 | Supertrend | pandas-ta | period, mult | `ind_supertrend` |
+| Donchian channel (rolling extreme) | pandas rolling | period | `ind_dc_high_{p}` / `ind_dc_low_{p}` |
+
+**Donchian note:** always `.shift(1)` the rolling extreme — the signal is
+`close` versus the *prior* N-candle extreme. Without the shift the channel
+contains the current candle, `close > rolling max` can never be true
+(close <= high), and the strategy silently fires zero trades.
 
 ## Momentum
 | Indicator | Library | Params | Column |

@@ -7,7 +7,7 @@ once, before any strategy code is written.
 
 ## Prerequisite
 A strategy plan exists. Either:
-- one of the nine plans in `user_data/strategies/plan/` (see `INDEX.md`), or
+- one of the plans in `user_data/strategies/plan/` (see `INDEX.md`), or
 - a filled-in `.agent/prompts/strategy-idea.md`.
 
 If neither exists, or the idea file still has template placeholders, STOP and
@@ -51,8 +51,14 @@ Then confirm `exchange.pair_whitelist` uses futures notation (`BTC/USDT:USDT`,
 never `BTC/USDT`) and matches the pairs in the plan that actually have data.
 
 ### Check 3 — infra canary
+**On a fresh build the strategy `.py` does not exist yet** — its config cannot
+load until Phase 1 scaffolds the file. The canary therefore runs with the
+SmokeTestStrategy config (STATE.md: "`SmokeTestStrategy.py` is the infra
+canary"). Only use the strategy's own config here when the `.py` already
+exists (e.g. a resumed run).
+
 ```bash
-freqtrade backtesting --config configs/strategies/$STRAT.json \
+freqtrade backtesting --config configs/strategies/SmokeTestStrategy.json \
   --timerange 20250601-20250701 --cache none \
   2>&1 | grep -vE " INFO - " | tail -15
 ```

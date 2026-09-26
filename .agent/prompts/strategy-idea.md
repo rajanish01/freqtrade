@@ -4,6 +4,10 @@ Fill this in before Phase 0. The agent treats this file as the contract for the
 whole run — everything it builds must trace back to something written here.
 If a section still says `<...>`, the agent must stop and ask.
 
+**This file is the intake form for a raw idea, not a full plan.** Promotion
+from idea to plan means rewriting it in `user_data/strategies/plan/00-TEMPLATE.md`
+format — full plans (not this file) are the contract for the 0-8 loop.
+
 A worked example is in `strategy-idea.example.md`.
 
 ---
