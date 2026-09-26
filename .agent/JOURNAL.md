@@ -240,3 +240,17 @@ Result:   PF 0.61, -81.02%, DD 81.33%, Sharpe -2.48, 4567 trades, 0/10
 Decision: Postmortem phase4-iter1.md: knife-catch entry is the root cause;
           hypothesis UNDETERMINED. Re-enter Phase 3 with the pre-approved
           rejection-confirmed entry. If it fails gates again -> DEAD.
+
+## 2026-09-26 — Phase 4 BACKTEST iters 1-2 — FAIL -> FINAL VERDICT DEAD
+Strategy: BBRSIMeanReversion
+Command:  bias checks + IS 20220101-20250630 --enable-protections + analysis (x2)
+Result:   iter 1 (rejection-confirmed entry): PF 0.73, -44.12%, K4 3.14x.
+          iter 2 (band-mid exit, user-approved override): PF 0.79, -43.53%,
+          DD 43.84%, K4 2.13x (passes), 3862 trades, 1/10 pairs, Sharpe
+          -1.48. Bias CLEAN throughout. Every fix moved metrics toward the
+          gates; none crossed PF 1.0.
+Decision: Kill criteria met (PF < 1.2 after tuning rounds) + user's
+          pre-registered "final attempt" decision -> DEAD. Terminal verdict:
+          .agent/reports/BBRSIMeanReversion/DEAD.md. Strategy file + config
+          deleted. LESSON: a +0.2% median reversion win cannot clear a 0.1%
+          round-trip cost floor at 15m — binds band-family plans 2, 3, 11.

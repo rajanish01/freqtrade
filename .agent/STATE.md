@@ -4,16 +4,17 @@ The agent rewrites this file at the end of every phase and every fix iteration.
 Keep it short. This is the first thing read at the start of a session.
 
 ```yaml
-active_strategy:    BBRSIMeanReversion
-strategy_file:      user_data/strategies/BBRSIMeanReversion.py (created at Phase 1)
-plan_file:          user_data/strategies/plan/BBRSIMeanReversion.md
-config:             configs/strategies/BBRSIMeanReversion.json
-current_phase:      3
-phase_status:       IN_PROGRESS     # re-entered with pre-approved rejection-confirmed entry
-iteration:          1               # fix attempts within current_phase (max 3)
+active_strategy:    (none — pick from user_data/strategies/plan/INDEX.md)
+strategy_file:      (deleted — BBRSIMeanReversion DEAD 2026-09-26)
+plan_file:          (none)
+config:             (deleted — BBRSIMeanReversion DEAD 2026-09-26)
+current_phase:      4
+phase_status:       DEAD           # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
+iteration:          2               # fix attempts within current_phase (max 3)
 freqai_enabled:     false
 branch:             rj/strategy/BBRSIMeanReversion  # forked from rj/develop 2026-09-26
 journal:            .agent/reports/BBRSIMeanReversion/journal.md
+final_report:       .agent/reports/BBRSIMeanReversion/DEAD.md
 ```
 
 Reset on 2026-09-26 (user-approved full reset): the in-progress BBRSIMeanReversion
@@ -47,13 +48,13 @@ Recommended order: `BBRSIMeanReversion` first (it is the control), then
 ## Last verified result
 
 ```yaml
-command:            freqtrade backtesting --config configs/strategies/BBRSIMeanReversion.json --timerange 20250601-20250701 --cache none  (phase 3 smoke)
-timerange:          20250601-20250701
-trades:             170
-profit_factor:      n/a (smoke; total -6.76%)
-max_drawdown_pct:   9.20
-sharpe:             -6.74 (wallet, prior smoke run; not the verdict)
-funding_fees:       applied
+command:            freqtrade backtesting --config configs/strategies/BBRSIMeanReversion.json --timerange 20220101-20250630 --cache none --enable-protections --timeframe-detail (final, iter 2 band-mid exit)
+timerange:          20220101-20250630
+trades:             3862
+profit_factor:      0.79 (best of three: 0.61 -> 0.73 -> 0.79)
+max_drawdown_pct:   43.84
+sharpe:             -1.48
+funding_fees:       3.91 USDT (lev avg 1.16x)
 ```
 
 ## Portfolio ledger
@@ -64,7 +65,7 @@ Terminal states: `DEAD` (verdict at `.agent/reports/<Name>/DEAD.md`) or
 
 | # | Strategy | TF | Short | Phase | Status |
 |---|----------|-----|-------|-------|--------|
-| 1 | BBRSIMeanReversion | 15m | yes | 0 | PASS |
+| 1 | BBRSIMeanReversion | 15m | yes | 4 | DEAD |
 | 2 | KeltnerATRReversion | 15m | yes | 0 | NOT_STARTED |
 | 3 | VWAPBandReversion | 15m | yes | 0 | NOT_STARTED |
 | 4 | EWODipHunter | 15m | no | 0 | NOT_STARTED |

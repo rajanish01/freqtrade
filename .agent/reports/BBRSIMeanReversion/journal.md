@@ -92,5 +92,31 @@ Decision: Postmortem: root cause = knife-catch entry fires on the falling
           Phase 3 with the rejection-confirmed entry (pre-approved in-plan).
           If it fails the gates again, kill criteria met -> DEAD.
 
+## 2026-09-26 — Phase 4 BACKTEST (iter 1 of fix: rejection-confirmed) — FAIL
+Command:  bias checks + IS 20220101-20250630 --enable-protections + analysis
+Result:   PF 0.73, -44.12%, DD 44.53%, Sharpe -1.48, 2611 trades (-43%),
+          K4 3.14x (improved from 3.85x, still > 3x). Stoploss 137 trades =
+          70% of gross loss. roi exits +1150. 0/10 pairs. 0/5 gates met in
+          full. Bias CLEAN.
+Decision: The pre-approved fix moved every metric toward the gates but
+          crossed none. User approved ONE override attempt (ranked #2):
+          band-mid exit replacing the RSI exit (rsi_exit cohort -486 USDT,
+          captures nothing). Final attempt.
+
+## 2026-09-26 — Phase 4 BACKTEST (iter 2: band-mid exit) — FAIL -> DEAD
+Command:  bias checks + IS 20220101-20250630 --enable-protections + analysis
+Result:   PF 0.79, -43.53%, DD 43.84%, Sharpe -1.48, 3862 trades (+48% —
+          fast exits re-enter), K4 2.13x (PASSES), stoploss 51 trades = 22%
+          of gross loss. bb_mid_exit 3482 trades -421.5 USDT (median +0.24%,
+          mean -0.203% — fee drag + immediate V-reversal exits). roi +360.7.
+          1/10 pairs. Funding 3.91 USDT, lev avg 1.16x. Bias CLEAN.
+Decision: Gates still fail (PF 0.79 < 1.2, DD 43.84% > 25%, Sharpe -1.48,
+          1/10 pairs). User's pre-registered decision: this was the final
+          attempt -> DEAD. Terminal verdict at DEAD.md. LESSON: a +0.2%
+          median reversion win cannot clear a 0.1% round-trip cost floor at
+          15m; faster exits that free slots re-enter into the same shallow
+          edge.
+
+
 
 

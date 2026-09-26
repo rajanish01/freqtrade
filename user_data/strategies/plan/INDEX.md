@@ -140,10 +140,16 @@ backtesting, hyperopt or evaluation. See root `AGENTS.md` §1.
 
 ## Status
 
-None of these are implemented yet. They are plans, not strategies. Every one
-must pass Phases 0-7 before it means anything, and the honest prior is that
-**most will fail**. A plan that dies at Phase 4 with a clear postmortem is a
-successful use of this process.
+**Plan 1 `BBRSIMeanReversion` is DEAD** (2026-09-26, Phase 4 after 3
+measurements — PF 0.79 best of three, kill criteria met; terminal verdict at
+`.agent/reports/BBRSIMeanReversion/DEAD.md`). Its lesson binds the remaining
+band-family plans: a +0.2% median reversion win cannot clear a 0.1% round-trip
+cost floor at 15m frequency.
+
+None of the other plans are implemented yet. They are plans, not strategies.
+Every one must pass Phases 0-7 before it means anything, and the honest prior
+is that **most will fail**. A plan that dies at Phase 4 with a clean postmortem
+is a successful use of this process.
 
 Track run progress in `.agent/STATE.md`; terminal verdicts and the
 family scorecard in `.agent/reports/PORTFOLIO.md`.
