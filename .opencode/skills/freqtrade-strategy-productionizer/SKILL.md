@@ -20,6 +20,10 @@ the repo's existing framework — it does not replace it.
   `add_config_files`). The user's own `config.json` keeps working, untouched.
 - Never edit `freqtrade/`, `tests/`, `ft_client/`, `docs/`, `setup.*`,
   `pyproject.toml`. Never set `"dry_run": false`. Never write real API keys.
+- All strategy work runs in a dedicated git worktree
+  (`git worktree add -b rj/strategy/<Name> ../freqtrade-<name> rj/develop`);
+  the main checkout is never blocked — no strategy files, run state edits, or
+  long-running freqtrade commands there. See AGENTS.md §3 worktree discipline.
 - One strategy at a time, one phase at a time, max 3 fix iterations per phase.
 
 ## Session startup — do this before anything else
