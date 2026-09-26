@@ -8,7 +8,7 @@ active_strategy:    BBRSIMeanReversion
 strategy_file:      user_data/strategies/BBRSIMeanReversion.py (created at Phase 1)
 plan_file:          user_data/strategies/plan/BBRSIMeanReversion.md
 config:             configs/strategies/BBRSIMeanReversion.json
-current_phase:      1
+current_phase:      2
 phase_status:       NOT_STARTED     # NOT_STARTED | IN_PROGRESS | PASS | FAIL | DEAD
 iteration:          0               # fix attempts within current_phase (max 3)
 freqai_enabled:     false

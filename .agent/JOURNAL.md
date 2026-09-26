@@ -200,3 +200,11 @@ Decision: Phase 0 PASS. Branch rj/strategy/BBRSIMeanReversion forked from
           own config cannot load before Phase 1 scaffolds the .py). Also
           noted: venv activation does not persist across parallel tool calls
           (ENVIRONMENT.md runtime updated). Proceed to Phase 1.
+
+## 2026-09-26 — Phase 1 SCAFFOLD — PASS
+Strategy: BBRSIMeanReversion
+Command:  list-strategies + smoke backtest 20250601-20250701 --cache none
+Result:   OK (4 buy + 1 sell params); smoke 0 trades, exit 0, no errors.
+          Risk layer re-verified: K2 1.2% (<=2%), K7 4%/33.3% (PASS),
+          K4 0.01<=0.01 (boundary), ROI precedes trailing. Protections 15m.
+Decision: Phase 1 PASS. Proceed to Phase 2.
