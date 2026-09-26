@@ -68,6 +68,16 @@ The export is a timestamped `.zip`; locate it with
 (all 10 pairs have it — see `ENVIRONMENT.md`). Callbacks (trailing stop,
 custom stop) then evaluate per 1m candle, which is how live behaves.
 
+**Scale the pass to what it can decide (2026-09-26, from the
+BBRSIMeanReversion run):**
+- Main-TF gates **PASS** -> run the **full-window** detail. This is where
+  flattery detection matters most, and a passing verdict depends on it.
+- Main-TF gates already **FAIL** (verdict decided) -> run a **reduced window**
+  (e.g. 6 months on the 3 most-traded pairs) and record the reduction in the
+  journal. The full 3.5y pass is OOM-prone and cannot rescue a decided
+  verdict — the reduced pass keeps this step honest without burning an hour.
+- Never silently skip the step either way.
+
 ```bash
 freqtrade backtesting --config configs/strategies/$STRAT.json \
   --timerange 20220101-20250630 --cache none --enable-protections \
@@ -113,7 +123,7 @@ your favour, do not fill in a number you did not see.
 | Total trades | >= 100 | over a 3.5-year window; fewer is not significant |
 | Sharpe (daily) | > 0.5 | risk-adjusted, not raw return |
 | Profit per pair | > 0 on >= 60% of pairs | else it is a one-pair strategy |
-| Exit reason mix | stoploss share < 50% | else the entry has no edge |
+| Exit reason mix | stoploss share of gross **loss** < 50% | else the entry has no edge. Report the trade-count share too — count 1.3% vs loss 22% read opposite ways (BBRSIMeanReversion 2026-09-26) |
 | Funding share of gross profit | < 20% | futures: else you are renting money to hold |
 | Payoff ratio (Kotegawa K4) | avg_loss < 3 x avg_win | inverted risk-reward is a kill regardless of win rate |
 
@@ -179,7 +189,7 @@ Max drawdown < 25%:         PASS/FAIL (<actual>)
 Trades >= 100:              PASS/FAIL (<actual>)
 Sharpe > 0.5:               PASS/FAIL (<actual>)
 Profitable pairs >= 60%:    PASS/FAIL (<actual>)
-Stoploss exits < 50%:       PASS/FAIL (<actual>)
+Stoploss share of gross loss < 50%: PASS/FAIL (<actual loss-share; count-share <actual>)
 Funding < 20% of gross:     PASS/FAIL (<actual>)
 Payoff: avg_loss < 3x avg_win: PASS/FAIL (<actual>)
 ─────────────────────────

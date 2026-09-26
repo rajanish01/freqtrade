@@ -186,3 +186,97 @@ Result:   First run 9 PASS / 1 FAIL — the FAIL was the script's trade-count
 Decision: Framework hardening complete and committed to rj/develop
           (67d581e71 + parser-fix commit). Local branches: only rj/develop
           remains; rj/strategy/* deleted per user direction.
+
+## 2026-09-26 — Phase 0 DATA-READINESS — PASS
+Strategy: BBRSIMeanReversion
+Command:  list-data + list-strategies + canary (SmokeTestStrategy config) + funding count
+Result:   10/10 pairs 15m+1m, 20220101-20260923. Exactly 2 configs loaded.
+          Canary 50 trades, -3.95%, 0 funding warnings. Funding files 10.
+          IS 20220101-20250630 / OOS 20250701-20260709 stated.
+Decision: Phase 0 PASS. Branch rj/strategy/BBRSIMeanReversion forked from
+          rj/develop. Framework touch-ups applied pre-Phase-0: review
+          recommendations R2-R5 + NEW finding F7 — Phase 0 Check 3 canary now
+          falls back to SmokeTestStrategy.json on fresh builds (the strategy's
+          own config cannot load before Phase 1 scaffolds the .py). Also
+          noted: venv activation does not persist across parallel tool calls
+          (ENVIRONMENT.md runtime updated). Proceed to Phase 1.
+
+## 2026-09-26 — Phase 1 SCAFFOLD — PASS
+Strategy: BBRSIMeanReversion
+Command:  list-strategies + smoke backtest 20250601-20250701 --cache none
+Result:   OK (4 buy + 1 sell params); smoke 0 trades, exit 0, no errors.
+          Risk layer re-verified: K2 1.2% (<=2%), K7 4%/33.3% (PASS),
+          K4 0.01<=0.01 (boundary), ROI precedes trailing. Protections 15m.
+Decision: Phase 1 PASS. Proceed to Phase 2.
+
+## 2026-09-26 — Phase 2 INDICATORS — PASS
+Strategy: BBRSIMeanReversion
+Command:  smoke 20250601-20250701 + recursive-analysis 20250101-20250701
+Result:   Smoke 0 trades, exit 0. recursive-analysis: 0.000% drift on all
+          indicators at every length incl. 200. 9 columns from 7 indicators,
+          all catalog-approved.
+Decision: Phase 2 PASS. Proceed to Phase 3.
+
+## 2026-09-26 — Phase 3 SIGNALS — PASS (iter 1: import bug fixed)
+Strategy: BBRSIMeanReversion
+Command:  smoke backtest 20250601-20250701 --cache none (x2)
+Result:   First run caught leverage NameError('isfinite') — Phase 2 import
+          edit had dropped `from math import isfinite`; freqtrade fell back
+          to 1x silently. Fixed, re-run: 170 trades, -6.76%, 70.0% win,
+          DD 9.20%, 0 leverage errors.
+Decision: Phase 3 PASS (count in sane band 1-200, above plan's rough 5-40).
+          Proceed to Phase 4. Gotcha #1 annotated (tuple-assign is the only
+          broken form; scalar-assign verified safe on empty masks).
+
+## 2026-09-26 — Phase 4 BACKTEST — FAIL (iter 1)
+Strategy: BBRSIMeanReversion
+Command:  IS 20220101-20250630 --enable-protections --cache none --breakdown
+          month + bias checks + backtesting-analysis + reduced 1m detail
+Result:   PF 0.61, -81.02%, DD 81.33%, Sharpe -2.48, 4567 trades, 0/10
+          pairs. K4 3.85x FAIL. Stoploss 318 trades avg -12.1% = 76% of
+          gross loss; roi exits +1238.5; rsi_exit -497 (captures nothing).
+          Funding 7.58 USDT (0.6% of gross wins). Bias CLEAN. Reproduces the
+          prior v1 failure digit-for-digit.
+Decision: Postmortem phase4-iter1.md: knife-catch entry is the root cause;
+          hypothesis UNDETERMINED. Re-enter Phase 3 with the pre-approved
+          rejection-confirmed entry. If it fails gates again -> DEAD.
+
+## 2026-09-26 — Phase 4 BACKTEST iters 1-2 — FAIL -> FINAL VERDICT DEAD
+Strategy: BBRSIMeanReversion
+Command:  bias checks + IS 20220101-20250630 --enable-protections + analysis (x2)
+Result:   iter 1 (rejection-confirmed entry): PF 0.73, -44.12%, K4 3.14x.
+          iter 2 (band-mid exit, user-approved override): PF 0.79, -43.53%,
+          DD 43.84%, K4 2.13x (passes), 3862 trades, 1/10 pairs, Sharpe
+          -1.48. Bias CLEAN throughout. Every fix moved metrics toward the
+          gates; none crossed PF 1.0.
+Decision: Kill criteria met (PF < 1.2 after tuning rounds) + user's
+          pre-registered "final attempt" decision -> DEAD. Terminal verdict:
+          .agent/reports/BBRSIMeanReversion/DEAD.md. Strategy file + config
+          deleted. LESSON: a +0.2% median reversion win cannot clear a 0.1%
+          round-trip cost floor at 15m — binds band-family plans 2, 3, 11.
+
+## 2026-09-26 — FRAMEWORK REFINEMENTS (from first strategy run) — NOTE
+Strategy: portfolio-wide framework work (no strategy run)
+Command:  pip install pyflakes + gh binary install to ~/.local/bin + file edits
+Result:   Three refinements applied: (1) Phase-1 lint step — pyflakes 4.0.0
+          catches undefined names (the dropped-isfinite class surfaces as a
+          silent per-entry NameError + 1x leverage fallback; list-strategies
+          and py_compile miss it); (2) Phase-4 1m-detail pass now scales to
+          what it can decide — reduced window when main-TF gates already
+          FAIL, full window when they PASS (the full 3.5y pass is OOM-prone
+          and cannot rescue a decided verdict); (3) stoploss-share gate
+          clarified as gross-LOSS share (count 1.3% vs loss 22% read opposite
+          ways in the BBRSI run). gh CLI 2.101.0 installed (binary, no sudo).
+Decision: Framework tightened from the first run's observations without
+          loosening discipline. Next: commit, push branch, PR to rj/develop.
+
+## 2026-09-26 — PR TO rj/develop — DONE
+Strategy: portfolio-wide framework work + BBRSIMeanReversion run record
+Command:  gh 2.101.0 (binary, ~/.local/bin) auth (user, device flow) + git push -u origin rj/strategy/BBRSIMeanReversion + gh pr create --base rj/develop --body-file
+Result:   PR #3: https://github.com/rajanish01/freqtrade/pull/3 —
+          "First strategy run: BBRSIMeanReversion DEAD (clean postmortem) +
+          framework refinements". Base rj/develop, head rj/strategy/BBRSIMeanReversion,
+          8 commits (R2-R5 + canary fallback, phases 0-4 + DEAD verdict,
+          3 refinements). First gh pr create failed on shell quoting of the
+          long --body; fixed with --body-file.
+Decision: Awaiting user review/merge. Next strategy is a separate decision.

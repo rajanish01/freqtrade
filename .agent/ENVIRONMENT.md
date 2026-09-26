@@ -16,7 +16,9 @@ Last verified: 2026-09-24
 | numpy | 2.4.6 |
 | ccxt | 4.5.61 |
 | freqtrade | 2026.6 (this checkout, bleeding-edge) |
-| venv | `.venv` — activate with `source .venv/bin/activate` |
+| venv | `.venv` — activate with `source .venv/bin/activate` **per command**: activation does NOT persist across parallel tool calls, so always prefix `source .venv/bin/activate && <cmd>` |
+| pyflakes | 4.0.0 (venv, installed 2026-09-26) — Phase-1 lint: `python -m pyflakes user_data/strategies/<Name>.py`; catches undefined names (dropped-import class) that `list-strategies` and `py_compile` miss |
+| gh CLI | 2.101.0 at `~/.local/bin/gh` (installed 2026-09-26, binary — no sudo on this box); needs `gh auth login` before PR creation |
 | `timeout` cmd | Linux shell, available; note the bash tool kills its process group on timeout — use `setsid` for long downloads (see data-download.md) |
 
 ## Agent model
@@ -84,6 +86,11 @@ Touching the OOS window with hyperopt invalidates the entire run.
 ---
 
 ### 13. Funding-rate data was repaired — do not undo it
+**Note (2026-09-26):** a fresh freqtrade 2026.6 `download-data` writes funding
+files at the correct timeframe natively (see Data section above). The manual
+copy repair below is only needed for the legacy pre-2026.6 dataset on disk —
+do not re-run it on a fresh download; the two file kinds are identical.
+
 Binance's `funding_fee_timeframe` defaults to **1h**, but the download on disk
 was **8h**, so freqtrade found no funding data and **silently applied zero
 funding fees** to every futures backtest. That systematically overstated any
@@ -180,6 +187,12 @@ dataframe.loc[(), ['enter_long', 'enter_tag']] = (1, 'enter_long')
 It fails deep inside `backtesting.py` with
 `AssertionError: Something has gone wrong, please report a bug at pandas`.
 The message names pandas, but **the bug is in the strategy**.
+
+**Verified 2026-09-26 (pandas 3.0.3):** the crash is specific to the
+tuple-assign form above. The scalar-assign form is safe even with an empty
+mask and a brand-new column — `df.loc[empty_mask, 'newcol'] = 'x'` produces a
+proper `str` column, no exception. Initialise-then-assign is still the
+mandated style (readable, and immune either way).
 
 Correct empty scaffold:
 ```python

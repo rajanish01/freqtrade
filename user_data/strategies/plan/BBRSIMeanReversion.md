@@ -120,8 +120,11 @@ pre-approved fallback above, not the default.)
 
 ## Exit Logic
 
-**Long:** `ind_rsi_14 > opt_rsi_exit` (default 70) — tag `rsi_exit`
-**Short:** `ind_rsi_14 < (100 - opt_rsi_exit)` — tag `rsi_exit`
+**Long:** `close >= ind_bb_mid` — tag `bb_mid_exit` (reversion to the mid completed)
+**Short:** `close <= ind_bb_mid` — tag `bb_mid_exit`
+
+(Current contract after the 2026-09-26 override — the original RSI exit
+`ind_rsi_14 > opt_rsi_exit` was removed: it captured nothing, avg -2.4%.)
 
 ---
 
@@ -133,9 +136,9 @@ pre-approved fallback above, not the default.)
 | opt_mfi_entry | IntParameter | 15-40 | 30 | buy |
 | opt_min_bb_width | DecimalParameter | 0.005-0.05 | 0.01 | buy |
 | opt_min_vol_ratio | DecimalParameter | 0.3-1.5 | 0.5 | buy |
-| opt_rsi_exit | IntParameter | 60-85 | 70 | sell |
 
-Five parameters. Keep it that way.
+Four parameters (opt_rsi_exit removed 2026-09-26 — dead param after the
+band-mid exit change; sell space is now empty).
 
 ### Hyperopt execution notes
 
@@ -241,3 +244,11 @@ exact mode killed the prior run (see top).
   lessons ledger — the v1 knife-catch run died on inverted payoff). Marked
   `ind_bb_pct` diagnostic-only. Added risk verification, protections,
   hyperopt-flag note (not needed), phase map. No parameter changes.
+- 2026-09-26: Exit changed RSI -> band mid (`close >= ind_bb_mid` long /
+  `close <= ind_bb_mid` short, tag `bb_mid_exit`); `opt_rsi_exit` removed
+  (sell space now empty). Evidence: phase4-iter1 postmortem — the pre-approved
+  rejection-confirmed entry improved everything (PF 0.61 -> 0.73, K4
+  3.85x -> 3.14x) but kill criteria met (K4 > 3x, PF < 1.2). User approved
+  ONE override attempt: rsi_exit cohort loses -486 USDT (avg -2.4%, captures
+  nothing) while roi exits +1150 win; the band-mid exit targets the reversion
+  directly. If this also fails the gates, DEAD — no further attempts.

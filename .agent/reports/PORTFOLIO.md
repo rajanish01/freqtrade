@@ -11,7 +11,7 @@ process — it is evidence, not waste.
 
 | # | Strategy | TF | Short | Phase | Verdict | Report |
 |---|----------|-----|-------|-------|---------|--------|
-| 1 | BBRSIMeanReversion | 15m | yes | 0 | NOT_STARTED | — |
+| 1 | BBRSIMeanReversion | 15m | yes | 4 | DEAD | .agent/reports/BBRSIMeanReversion/DEAD.md |
 | 2 | KeltnerATRReversion | 15m | yes | 0 | NOT_STARTED | — |
 | 3 | VWAPBandReversion | 15m | yes | 0 | NOT_STARTED | — |
 | 4 | EWODipHunter | 15m | no | 0 | NOT_STARTED | — |
@@ -47,6 +47,13 @@ One line per terminal verdict. Newest at the bottom.
   a distant stop; 70% win rate with inverted payoff (loss 3.9x win) loses
   decisively. When plan 1 is picked up, restart from Phase 1 and propose the
   rejection-confirmed entry at Phase 3.
+- (2026-09-26, BBRSIMeanReversion — terminal, plan 1 DEAD, three Phase-4
+  measurements): the reversion edge is real but tiny — fixes moved PF
+  0.61 -> 0.73 -> 0.79 and K4 3.85x -> 3.14x -> 2.13x (passing) without ever
+  crossing PF 1.0. LESSON: a +0.2% median reversion win cannot clear a 0.1%
+  round-trip cost floor at 15m; faster exits free slots that re-enter into
+  the same shallow edge. Binds band-family plans 2, 3, 11: answer the
+  cost-floor question before Phase 4.
 
 ## Rules
 
