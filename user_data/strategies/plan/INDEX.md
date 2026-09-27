@@ -113,7 +113,7 @@ parameters.
 | Timeframe | 5m | **15m** (3 exceptions) | 0.1% round-trip fee vs ~1% target move; 4x faster hyperopt |
 | Stoploss | -0.05 to -0.15 | **widened** | `profit_ratio = price_move x leverage`; a -5% stop at 3x is only 1.67% of price |
 | `minimal_roi` | up to 40% | **realistic intraday** | 40% targets are spot moonbag logic |
-| Leverage | n/a | **dynamic, NATR-targeted** | risk sizing, capped 2-3x, never hyperopt-optimised |
+| Leverage | n/a | **dynamic, NATR-targeted** | risk sizing, capped 2-3x; the formula never hyperopted (cap/values a bounded MAZE T2 dimension — see `futures-playbook.md` §4) |
 | Funding | n/a | **modelled and reported** | 8h funding is a real cost on every held position |
 | Parameter sweeps | 76-456 combos | **cut to 3-9 params / stepped sweeps** | fewer degrees of freedom to overfit |
 
@@ -142,14 +142,32 @@ backtesting, hyperopt or evaluation. See root `AGENTS.md` §1.
 
 **Plan 1 `BBRSIMeanReversion` is DEAD** (2026-09-26, Phase 4 after 3
 measurements — PF 0.79 best of three, kill criteria met; terminal verdict at
-`.agent/reports/BBRSIMeanReversion/DEAD.md`). Its lesson binds the remaining
-band-family plans: a +0.2% median reversion win cannot clear a 0.1% round-trip
-cost floor at 15m frequency.
+`.agent/reports/_archive/pre-maze-2026-09-27/BBRSIMeanReversion/DEAD.md`,
+archived 2026-09-28 — verdict kept as historical evidence). Its lesson binds
+the remaining band-family plans: a +0.2% median reversion win cannot clear a
+0.1% round-trip cost floor at 15m frequency.
+
+**Plan 1 was RESET by user direction** (2026-09-28): re-enter through the
+MAZE (`.agent/phases/04M-MAZE.md`) from Phase 0/1, rebuilding the strategy
+from its plan. Its DEAD verdict is kept (a death verdict is never deleted),
+but the run is fresh: the maze's T1 moves — a confirmation filter before the
+knife-candle entry, and a timeframe step — are exactly the two responses its
+lesson called for that the old 3-iteration budget never allowed trying.
+
+**Plan 10 `DonchianATRBreakout` was RESET** (2026-09-28, user-directed): its
+pre-MAZE Phase-4 run failed iter 1 (PF 0.9068, cost floor — raw edge
+consumed ~10x by fees) and was archived at
+`.agent/reports/_archive/pre-maze-2026-09-27/DonchianATRBreakout/` rather
+than iterated under the old 3-fix budget. Re-enter it through the MAZE
+(`.agent/phases/04M-MAZE.md`) — its postmortem's cost-floor failure mode is
+exactly what the T1 candidate set (timeframe, confirmation filter, exit
+mechanism) is for. The plan file itself remains live.
 
 None of the other plans are implemented yet. They are plans, not strategies.
-Every one must pass Phases 0-7 before it means anything, and the honest prior
-is that **most will fail**. A plan that dies at Phase 4 with a clean postmortem
-is a successful use of this process.
+Every one must pass the full loop (Phases 0-4, then the MAZE tiers T0-T5)
+before it means anything, and the honest prior is that **most will fail**. A
+plan that dies with a clean postmortem and an exhausted maze is a successful
+use of this process.
 
 Track run progress in `.agent/STATE.md`; terminal verdicts and the
 family scorecard in `.agent/reports/PORTFOLIO.md`.

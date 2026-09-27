@@ -71,15 +71,23 @@ entering shorts into a vertical move — that is where squeezes happen.
 ## 4. Dynamic leverage — volatility targeting
 
 Leverage is **risk sizing**, not signal. It is deterministic, rule-based, and
-**never hyperopt-optimised and never ML-driven**.
+**never ML-driven**. The FORMULA below is fixed by hand and never hyperopted
+— what may be hyperopted (MAZE tier T2, `--spaces risk`, formula-gated by
+K2/K7 — see `kotegawa-risk-layer.md`) is the `target_vol_pct` /
+`max_leverage_cap` CONSTANTS it uses, declared as `opt_*` parameters with
+`space="risk"` instead of plain class attributes. A strategy that leaves them
+as plain literals is choosing not to search that dimension, which is a valid,
+simpler default — search it only when a plan's postmortem specifically
+points at leverage/volatility-targeting as the lever worth pulling.
 
 The rule: target a constant risk contribution per trade by scaling leverage
 inversely with volatility.
 
 ```python
-# class attributes — tune by hand, never with hyperopt
+# class attributes by default — or DecimalParameter(..., space="risk") if
+# this strategy's maze searches them (T2+); the FORMULA below never changes
 target_vol_pct: float = 0.5    # desired NATR(14) in percent
-max_leverage_cap: float = 3.0  # hard ceiling, never exceeded
+max_leverage_cap: float = 3.0  # hard ceiling — searchable range [1.0, 3.0] if hyperopted
 
 def leverage(self, pair: str, current_time, current_rate: float,
              proposed_leverage: float, max_leverage: float,
@@ -97,6 +105,11 @@ def leverage(self, pair: str, current_time, current_rate: float,
 Notes:
 - `.iat[-1]` is correct **here**. The "no `.iloc[-1]`" rule applies to
   `populate_*` methods only — callbacks are evaluated per-candle by design.
+- The snippet above shows `target_vol_pct`/`max_leverage_cap` as plain class
+  attributes (the default, non-hyperopted case). If a node's maze searches
+  them, they are `DecimalParameter(..., space="risk")` instances instead —
+  read `.value` in the callback (`self.target_vol_pct.value`,
+  `self.max_leverage_cap.value`), same as any other `opt_*` parameter.
 - Requires `ind_natr_14` in `populate_indicators`. Every futures plan includes it.
 - Floors at 1.0: never below unleveraged.
 - Quiet markets get more size, violent markets get less. That is the point.
@@ -146,7 +159,11 @@ move of ~1%, so 10% of gross edge is lost to fees before funding — and 5m mean
 (`LiquidationWickFade`). 1h is used where the signal itself is 8-hourly
 (`FundingSkewCarry`).
 
-Changing a plan's timeframe is a YELLOW action.
+Changing a plan's timeframe is a YELLOW action — **the YELLOW moment is
+naming the candidate set once** (e.g. "try native 15m, 1h, and 4h" as a MAZE
+tier-T1 move set, `.agent/phases/04M-MAZE.md`), not re-approving each
+individual timeframe backtest within that named set. Going outside the named
+set (a timeframe nobody approved) is a fresh YELLOW ask.
 
 ---
 

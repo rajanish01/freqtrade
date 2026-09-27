@@ -6,19 +6,29 @@ consolidated "why it failed" verdict and closes the run.
 ## When this prompt runs
 
 Exactly one of:
-- The plan's "How will we know this failed?" (kill criteria) are met
-- All 3 fix iterations at Phase 4, 5 or 7 burned without passing the gates
+- The plan's "How will we know this failed?" (kill criteria) are met, at any
+  maze tier
+- The maze is exhausted per `.agent/phases/04M-MAZE.md` "Exhaustion" (every
+  named T1 candidate hyperopted with no epoch clearing every gate — not a
+  fixed iteration count)
+- All 3 fix iterations at Phase 0-3 (structural correctness, pre-maze)
+  burned without passing exit criteria
 - The user says "abandon"
 
 If none of these hold, this prompt does NOT run — go back to
-`.agent/prompts/iteration-fix.md` or the phase-specific postmortem instead.
+`.agent/prompts/iteration-fix.md` (Phases 0-3) or `backtest-postmortem.md`
+(spawn the next maze move) instead.
 
 ## Input
 
 Read all of it. This verdict is only as good as its evidence.
 - The strategy plan — especially the kill criteria and the hypothesis
-- Every postmortem in `.agent/reports/<Name>/phase4-iter*.md`
-  (and `phase7-validation.md` if Phase 7 ran)
+- `.agent/reports/<Name>/maze/ledger.csv` and `tree.md` — the full node
+  history. State the total node count in the verdict; a verdict that does
+  not disclose how many variants were tried is not trustworthy evidence
+  against the next similar plan (see `anti-patterns.md` #13)
+- Every postmortem in `.agent/reports/<Name>/phase4-iter*.md` (T0), plus
+  every `PRUNED`/`DEAD` node's notes in the ledger (T1+)
 - `.agent/JOURNAL.md` — every entry tagged with this strategy's name
 - The per-strategy journal `.agent/reports/<Name>/journal.md`
 - The final backtest output (re-run a read-only backtest if the numbers are
@@ -56,28 +66,35 @@ STATUS: DEAD — hypothesis <not supported | undetermined>; do not hyperopt or
         re-run this strategy again without a new plan.
 ─────────────────────────────────────────────────
 HYPOTHESIS:        <what the plan claimed, one sentence>
-DIED AT:           Phase <N>, iteration <N>
+DIED AT:           tier <T0-T5>, node <node_id>
+NODES EVALUATED:   <total ledger row count> (<N> pruned, <N> reached T2, ...)
 KILL CRITERIA:     <each criterion, MET/NOT MET, actual value>
 ─────────────────────────────────────────────────
-WHAT WAS TRIED
-  iter 1:  <change> -> <measured effect>
-  iter 2:  <change> -> <measured effect>
+WHAT WAS TRIED (summarise the tree, do not restate every ledger row)
+  T0:  baseline -> <headline gate failure>
+  T1:  <move 1> -> <measured effect> | <move 2> -> <measured effect> | ...
+  T2:  <best epoch across all T1 shapes> -> <measured effect>
   ...
 ─────────────────────────────────────────────────
 FINAL EVIDENCE
-  <headline numbers of the last backtest: PF, DD, Sharpe, trades, funding,
-  profitable pairs — plus the exit-reason attribution>
+  <headline numbers of the best node's last backtest: PF, DD, Sharpe, trades,
+  funding, profitable pairs — plus the exit-reason attribution>
 FAILURE MODE(S):   <classification with the numbers that support it>
 ROOT CAUSE CHAIN:  <specific indicators/thresholds, or "no mechanism found">
 ─────────────────────────────────────────────────
 WHY UNFIXABLE WITHIN THE RULES
-  <which fixes were tried; why the remaining moves violate the framework>
+  <which moves were tried across the tree; why the remaining moves violate
+  the framework or were already covered by a tried sibling>
 RETRY WOULD REQUIRE
   <new hypothesis or new evidence — user's call>
 ARTIFACTS
+  Ledger/tree:  .agent/reports/<Name>/maze/ledger.csv, maze/tree.md
   Postmortems:  .agent/reports/<Name>/phase4-iter*.md
   Journals:     .agent/JOURNAL.md, .agent/reports/<Name>/journal.md
   Strategy file/config: DELETED after this verdict (recorded here)
+  Maze node configs/genomes/run blobs: KEPT (they are the evidence trail,
+  not the live strategy — same reason journals are append-only and never
+  deleted)
 ─────────────────────────────────────────────────
 LESSON: <one line — what this failure teaches the rest of the portfolio>
 ```

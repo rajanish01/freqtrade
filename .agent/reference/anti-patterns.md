@@ -91,3 +91,36 @@ than pretending it is absent.
 results are not comparable.
 **Fix:** record every temporary change in `.agent/JOURNAL.md` and restore it in
 the same turn. Phase 7 explicitly requires restoration.
+
+## 13. The garden of forking paths (multiple comparisons)
+**What:** try enough variants of the same idea and one will clear the gates
+by chance alone, even with zero real edge. This is the specific risk
+`.agent/phases/04M-MAZE.md` exists to explore *despite*, not evidence that
+exploring variants is itself wrong — a single fixed backtest has exactly the
+same risk, just hidden, because nobody logs the variants that were tried in
+someone's head and silently rejected before the one that "worked" got run.
+**Symptom:** a strategy that only barely clears every gate, whose winning
+parameters do not resemble any sibling node's, found after many nodes were
+tried and most pruned.
+**Detect:**
+- The node count is not disclosed, or `.agent/reports/<Name>/maze/ledger.csv`
+  has fewer rows than the number of variants actually discussed/attempted —
+  the ledger not matching lived history is the tell.
+- `hyperopt-review.md`'s cross-node clustering check (Check 4) shows
+  wildly different "optimal" parameters per structural shape, each barely
+  passing.
+- The winning node's margin over a gate is smaller than
+  `maze.py status`'s trial-inflation note for the current node count — a
+  heuristic warning, not proof, but worth reading before celebrating.
+**Fix — in order of how much they actually help:**
+1. OOS is untouched by every node's search (`04M-MAZE.md` rule, not new)
+2. The vault window is spent once, on one finalist, ever
+3. Every node — pruned or not — stays in the ledger; the final verdict
+   states the total count
+4. Prefer the node that clears gates by the widest margin across the MOST
+   structurally different siblings, not the single best score anywhere in
+   the tree
+**Do not "fix" this by hiding the search** — reporting one clean-looking
+backtest and omitting that eleven others were tried and pruned is worse than
+reporting the search honestly, because it looks more rigorous while being
+less so.

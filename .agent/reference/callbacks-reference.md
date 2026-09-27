@@ -70,7 +70,10 @@ candle in backtesting** (`timeframe`, or `timeframe_detail` when
 - Only called in futures mode. Return clamped to `[1.0, max_leverage]`;
   default 1x when unimplemented.
 - Canonical implementation: `futures-playbook.md` §4 (NATR volatility
-  targeting, hard cap). Never hyperopt-optimised.
+  targeting, hard cap). The targeting FORMULA is never hyperopted; the
+  `target_vol_pct`/`max_leverage_cap` constants it uses may be, as a bounded
+  `space="risk"` parameter from MAZE tier T2 onward — see
+  `kotegawa-risk-layer.md` K7 and `04M-MAZE.md`.
 
 ## custom_roi — new in this version
 - Requires `use_custom_roi = True`. When both `minimal_roi` and `custom_roi`
@@ -85,8 +88,11 @@ candle in backtesting** (`timeframe`, or `timeframe_detail` when
   `--enable-protections` is passed.** Every Phase 4/5/7 backtest passes it.
 - Available: `CooldownPeriod`, `StoplossGuard`, `MaxDrawdown`
   (`calculation_mode: "equity"` recommended), `LowProfitPairs`.
-- The hyperopt `protection` space stays excluded (risk layer is never
-  optimised).
+- The set of protection METHODS is fixed by hand, never hyperopted. Their
+  VALUES (declared as `opt_*` parameters with `space="protection"`) are a
+  bounded hyperopt space from MAZE tier T2 onward — see
+  `kotegawa-risk-layer.md` K5 and `04M-MAZE.md`. This is a policy change from
+  the pre-MAZE framework; the old blanket exclusion is superseded.
 
 ## Production-only notes (Phase 8)
 - `stoploss_on_exchange: true` places the stop on the exchange so it survives

@@ -1,0 +1,149 @@
+"""DonchianATRBreakout — Turtle-style Donchian channel breakout, 15m futures.
+
+Hypothesis: a confirmed close beyond the prior N-candle extreme, with trend
+strength (ADX) and participation (volume) present, continues more often than
+it immediately fails, because the move is fuelled by forced stop-outs clustered
+behind the recent high/low. Enter on strength in either direction; hold until
+the shorter exit channel breaks (Turtle-style trailing structure).
+"""
+
+from math import isfinite
+
+from pandas import DataFrame
+import talib.abstract as ta
+
+from freqtrade.strategy import (
+    DecimalParameter,
+    IntParameter,
+    IStrategy,
+)
+
+
+class DonchianATRBreakout(IStrategy):
+    """Donchian breakout: enter on strength, exit on the shorter channel."""
+
+    INTERFACE_VERSION = 3
+
+    timeframe = "15m"
+    can_short = True
+
+    minimal_roi = {"0": 100}  # disabled — the exit channel is the exit
+    stoploss = -0.12
+    trailing_stop = False
+
+    use_custom_stoploss = False
+    position_adjustment_enable = False
+
+    startup_candle_count: int = 200
+
+    target_vol_pct: float = 0.5
+    max_leverage_cap: float = 2.0
+
+    opt_dc_entry_len = IntParameter(20, 120, default=80, step=20, space="buy")
+    opt_dc_exit_len = IntParameter(5, 40, default=15, step=5, space="sell")
+    opt_adx_min = IntParameter(15, 35, default=30, space="buy")
+    opt_vol_mult = DecimalParameter(1.0, 3.0, default=1.5, decimals=2, space="buy")
+
+    @property
+    def protections(self):
+        return [
+            {"method": "CooldownPeriod", "stop_duration_candles": 2},
+            {
+                "method": "StoplossGuard",
+                "lookback_period_candles": 96,
+                "trade_limit": 1,
+                "stop_duration_candles": 96,
+                "only_per_pair": False,
+                "only_per_side": False,
+            },
+            {
+                "method": "MaxDrawdown",
+                "lookback_period_candles": 2000,
+                "trade_limit": 5,
+                "max_allowed_drawdown": 0.10,
+                "calculation_mode": "equity",
+                "stop_duration_candles": 288,
+            },
+        ]
+
+    def leverage(
+        self,
+        pair: str,
+        current_time,
+        current_rate: float,
+        proposed_leverage: float,
+        max_leverage: float,
+        entry_tag: str | None,
+        side: str,
+        **kwargs,
+    ) -> float:
+        df, _ = self.dp.get_analyzed_dataframe(pair, self.timeframe)
+        if df is None or len(df) == 0:
+            return 1.0
+        natr = df["ind_natr_14"].iat[-1]
+        if not isfinite(natr) or natr <= 0:
+            return 1.0
+        lev = self.target_vol_pct / natr
+        return float(max(1.0, min(lev, self.max_leverage_cap, max_leverage)))
+
+    def populate_indicators(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        # Donchian entry channels — prior-N extreme via shift(1) (load-bearing:
+        # without it, close > rolling max can never be true and this fires 0 trades)
+        for n in range(20, 121, 20):
+            dataframe[f"ind_dc_high_{n}"] = dataframe["high"].rolling(n).max().shift(1)
+            dataframe[f"ind_dc_low_{n}"] = dataframe["low"].rolling(n).min().shift(1)
+        # Donchian exit channels (shorter, Turtle-style trailing structure)
+        for m in range(5, 41, 5):
+            dataframe[f"ind_dc_exit_low_{m}"] = dataframe["low"].rolling(m).min().shift(1)
+            dataframe[f"ind_dc_exit_high_{m}"] = dataframe["high"].rolling(m).max().shift(1)
+        # Trend fuel + participation
+        dataframe["ind_adx_14"] = ta.ADX(dataframe, timeperiod=14)
+        dataframe["ind_vol_sma_50"] = dataframe["volume"].rolling(50).mean()
+        dataframe["ind_vol_spike"] = dataframe["volume"] / dataframe["ind_vol_sma_50"]
+        # Volatility targeting input for the leverage callback
+        dataframe["ind_natr_14"] = ta.NATR(dataframe, timeperiod=14)
+        return dataframe
+
+    def populate_entry_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe.loc[:, "enter_long"] = 0
+        dataframe.loc[:, "enter_short"] = 0
+
+        dc_hi_col = f"ind_dc_high_{self.opt_dc_entry_len.value}"
+        dc_lo_col = f"ind_dc_low_{self.opt_dc_entry_len.value}"
+
+        long_cond = (
+            (dataframe["close"] > dataframe[dc_hi_col])
+            & (dataframe["ind_adx_14"] > self.opt_adx_min.value)
+            & (dataframe["ind_vol_spike"] > self.opt_vol_mult.value)
+            & (dataframe["volume"] > 0)
+        )
+        dataframe.loc[long_cond, "enter_long"] = 1
+        dataframe.loc[long_cond, "enter_tag"] = "dc_breakout_long"
+
+        short_cond = (
+            (dataframe["close"] < dataframe[dc_lo_col])
+            & (dataframe["ind_adx_14"] > self.opt_adx_min.value)
+            & (dataframe["ind_vol_spike"] > self.opt_vol_mult.value)
+            & (dataframe["volume"] > 0)
+        )
+        dataframe.loc[short_cond, "enter_short"] = 1
+        dataframe.loc[short_cond, "enter_tag"] = "dc_breakout_short"
+
+        return dataframe
+
+    def populate_exit_trend(self, dataframe: DataFrame, metadata: dict) -> DataFrame:
+        dataframe.loc[:, "exit_long"] = 0
+        dataframe.loc[:, "exit_short"] = 0
+
+        dc_exit_low_col = f"ind_dc_exit_low_{self.opt_dc_exit_len.value}"
+        dc_exit_high_col = f"ind_dc_exit_high_{self.opt_dc_exit_len.value}"
+
+        exit_long_cond = dataframe["close"] < dataframe[dc_exit_low_col]
+        dataframe.loc[exit_long_cond, "exit_long"] = 1
+        dataframe.loc[exit_long_cond, "exit_tag"] = "dc_trail_exit"
+
+        exit_short_cond = dataframe["close"] > dataframe[dc_exit_high_col]
+        dataframe.loc[exit_short_cond, "exit_short"] = 1
+        dataframe.loc[exit_short_cond, "exit_tag"] = "dc_trail_exit"
+
+        return dataframe

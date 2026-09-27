@@ -54,12 +54,26 @@ for kind in "1h-futures" "1h-funding_rate" "1h-mark"; do
   else bad "dataset: $N x $kind files (expected 10)"; fi
 done
 
-# 4. No stray strategy files — only the canary, plan/ and __pycache__ belong there
-STRAYS=$(find user_data/strategies -maxdepth 1 -name "*.py" ! -name "$CANARY.py" 2>/dev/null)
+# 4. No stray strategy files — the canary, the ACTIVE strategy (if any, per
+#    STATE.md), plan/ and __pycache__ belong there
+ACTIVE_FILE=$(grep -oE "^strategy_file:[[:space:]]*[^\s].*" .agent/STATE.md 2>/dev/null | head -1 | awk '{print $2}')
+STRAYS=$(find user_data/strategies -maxdepth 1 -name "*.py" ! -name "$CANARY.py" \
+  ${ACTIVE_FILE:+! -name "$(basename "$ACTIVE_FILE")"} 2>/dev/null)
 if [ -z "$STRAYS" ]; then
-  ok "no stray strategy .py files in user_data/strategies/"
+  if [ -n "$ACTIVE_FILE" ] && [ "$ACTIVE_FILE" != "(none)" ]; then
+    ok "no stray strategy .py files (canary + active: $(basename "$ACTIVE_FILE"))"
+  else
+    ok "no stray strategy .py files in user_data/strategies/"
+  fi
 else
   bad "stray strategy files: $STRAYS (dead/in-progress strategies must be removed)"
+fi
+
+# 4b. Maze tooling compiles (framework infrastructure, not strategy code)
+if .venv/bin/python -m py_compile .agent/scripts/maze.py .agent/scripts/hyperopt/MazeGateLoss.py 2>/dev/null; then
+  ok "maze tooling compiles (maze.py, MazeGateLoss.py)"
+else
+  bad "maze tooling broken — .agent/scripts/maze.py or MazeGateLoss.py does not compile"
 fi
 
 # 5. Infra canary backtest — proves configs + data + engine work end to end

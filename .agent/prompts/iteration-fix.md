@@ -2,6 +2,15 @@
 
 A phase failed its exit criteria. Diagnose, apply the smallest fix, re-run.
 
+**Scope: Phases 0-3 only** (data readiness, scaffold, indicators, signals —
+single-file structural correctness, before the strategy is measured against
+any gate). Phase 4 onward is the MAZE (`.agent/phases/04M-MAZE.md`); a
+backtest/hyperopt/robustness failure there is not "fixed" by this prompt's
+3-iteration loop — it spawns a new tree node instead, and the maze's own
+exhaustion rule decides when to stop, not a counter. If you are here because
+a maze node failed, you are in the wrong file — read `04M-MAZE.md` and
+`backtest-postmortem.md`'s "then" step instead.
+
 ## Iteration budget
 Three fix attempts per phase. Count them in `.agent/STATE.md` (`iteration:`).
 On the 4th failure, STOP and escalate to the user with a table of every change

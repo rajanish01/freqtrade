@@ -118,17 +118,61 @@ print('trades', len(t), '| funding total', round(t.funding_fees.sum(),4),
 "
 ```
 
-## Phase 5 — hyperopt
+## Phase 4M — the maze (tree search, supersedes a linear Phase 4 FAIL)
 
 ```bash
-# Optimise buy/sell spaces ONLY, on the IS window. Risk stays deterministic.
-# If any opt_* param is used inside populate_indicators, ADD --analyze-per-epoch
-# (indicators otherwise recompute never, and epochs optimize stale columns).
-freqtrade hyperopt --config $CFG --spaces buy sell \
-  --hyperopt-loss SharpeHyperOptLossDaily \
-  --epochs 300 --timerange 20220101-20250630 \
+# One-time per strategy, right after the T0 (Phase 4) baseline is measured:
+python .agent/scripts/maze.py init $STRAT
+python .agent/scripts/maze.py status $STRAT      # tree summary, any time
+python .agent/scripts/maze.py tree $STRAT        # regenerate tree.md
+
+# Register a T1 structural move (config-level — no .py edit needed for
+# timeframe/stoploss/ROI/trailing/max_open_trades; see ENVIRONMENT.md gotcha #8):
+python .agent/scripts/maze.py node $STRAT --parent N0001 --tier T1 \
+  --type timeframe --desc "try 1h" --set timeframe=1h
+
+# Run a node (backtest or hyperopt) — ALWAYS through maze.py, never a bare
+# freqtrade call, once a strategy has maze nodes (genome-slot staging, see
+# maze.py's module docstring):
+python .agent/scripts/maze.py run $STRAT N0002 --cmd backtest \
+  --timerange 20220101-20250630 --detail-1m
+
+python .agent/scripts/maze.py run $STRAT N0001 --cmd hyperopt \
+  --timerange 20220101-20250630 --epochs 300 \
+  --spaces buy sell protection risk stoploss
+
+# Promote a winning epoch into a confirmable T3 child node:
+python .agent/scripts/maze.py promote $STRAT N0003 --epoch 42 --tier T3 \
+  --desc "epoch 42: tighter RSI + wider stop"
+
+# Score an arbitrary existing export against the gate table directly:
+python .agent/scripts/maze.py gates $STRAT --zip results/backtests/x.zip --config $CFG
+
+# One-shot frozen-window confirmation (refuses a second call without --force):
+python .agent/scripts/maze.py vault $STRAT --node N0009
+```
+Full protocol: `.agent/phases/04M-MAZE.md`. Do not hand-write ledger rows or
+config overlays — the tool owns `.agent/reports/<Name>/maze/` and
+`configs/strategies/_maze/<Name>/`.
+
+## Phase 5 — hyperopt (mechanics; run it via `maze.py run --cmd hyperopt` above)
+
+```bash
+# What maze.py run --cmd hyperopt actually executes underneath, for reference.
+# T2 spaces now include protection/risk/stoploss (bounded by K2/K7, scored by
+# MazeGateLoss) — this is a policy change from the old buy/sell-only rule,
+# see 04M-MAZE.md and kotegawa-risk-layer.md. --enable-protections DOES work
+# during hyperopt (verified against hyperopt_optimizer.py) — the old "epochs
+# run without protections" text was wrong and has been corrected.
+freqtrade hyperopt --config $CFG \
+  --hyperopt-path .agent/scripts/hyperopt --hyperopt-loss MazeGateLoss \
+  --spaces buy sell protection risk stoploss \
+  --epochs 300 --timerange 20220101-20250630 --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -60
 ```
+If any `opt_*` param is used inside `populate_indicators`, add
+`--analyze-per-epoch` (indicators otherwise recompute never, and epochs
+optimize stale columns).
 
 ```bash
 freqtrade hyperopt-list --config $CFG --best --print-json
@@ -136,16 +180,20 @@ freqtrade hyperopt-show --config $CFG --best --print-json
 ```
 
 ```bash
-# OOS validation — the window hyperopt never saw, WITH protections on
+# OOS validation (T5, once per finalist) — the window hyperopt never saw
 freqtrade backtesting --config $CFG --timerange 20250701-20260709 \
   --breakdown month --cache none --enable-protections \
   2>&1 | grep -vE " INFO - " | tail -60
 ```
 
-Hyperopt writes best params to `user_data/strategies/<StrategyName>.json`, which
-freqtrade loads automatically and which **overrides class defaults**. To ignore
-it, pass `--disable-param-export` during hyperopt, or delete/rename the file.
-There is no `--export-filename` for hyperopt.
+Hyperopt writes best params to `user_data/strategies/<StrategyName>.json`,
+which freqtrade loads automatically and which **overrides class defaults** —
+this is now a SHARED SLOT across every node of one strategy, not a permanent
+per-run artifact; `maze.py run`/`promote` stage and restore it automatically
+and pass `--disable-param-export` so freqtrade never writes it unprompted
+mid-run. A node's permanent parameter record is its genome snapshot at
+`.agent/reports/<Name>/maze/params/<node_id>.json`. There is no
+`--export-filename` for hyperopt.
 
 ## Phase 6 — FreqAI
 

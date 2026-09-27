@@ -247,8 +247,41 @@ twice and `list-strategies` reports `DUPLICATE NAME` instead of `OK`.
 **CatBoost is not installed. torch / Reinforcement Learning models are not installed.**
 Verify with `freqtrade list-freqaimodels`.
 
-### 8. Strategy `timeframe` overrides the config
-The `timeframe` in the strategy class wins over the one in the JSON config.
+### 8. CORRECTED 2026-09-27 — the config overrides the strategy, not the reverse
+This entry previously said "the strategy class's `timeframe` wins over the
+config." That was backwards and had never been re-verified against source.
+Empirically re-checked (a strategy with `timeframe = "15m"` in the class,
+run with a config declaring `"timeframe": "1h"` and no `--timeframe` CLI
+flag): the resolved timeframe is **1h** — the config wins. Confirmed against
+`freqtrade/resolvers/strategy_resolver.py:_override_attribute_helper`, whose
+own docstring states the precedence outright: **Configuration > Strategy >
+default**. This applies to every attribute in that function's list —
+`minimal_roi`, `timeframe`, `stoploss`, `trailing_stop*`, `max_open_trades`,
+`stake_currency`, `stake_amount`, `startup_candle_count`, `use_exit_signal`,
+`exit_profit_only`, `position_adjustment_enable`, `order_types`, and more —
+whenever the config file declares that key directly (CLI flags, when passed,
+land in the same resolved config object and win the same way).
+
+**Why this matters:** it means a strategy's timeframe, stoploss, ROI,
+trailing-stop shape and max_open_trades can all be changed per run via a
+config overlay alone, with zero edits to the `.py` file — the mechanism
+`.agent/phases/04M-MAZE.md` (MAZE) relies on for T1 structural moves. It also
+means every config in `configs/strategies/` that declares these keys is
+authoritative over whatever the class says, which is exactly the design
+`futures-playbook.md` §9 already assumed ("one config per strategy") — this
+correction just makes explicit which direction the override runs.
+
+**Nested `add_config_files` chaining (verified same session):** `add_config_files`
+resolves recursively, up to 5 levels deep, relative to each file's own
+directory (`freqtrade/configuration/load_config.py:load_from_files`), and
+each file's own keys override whatever its included sub-files provide. A
+config at `configs/strategies/_maze/<Name>/<node>.json` with
+`"add_config_files": ["../../<Name>.json"]` — which itself chains to
+`../base.futures.json` — correctly inherits pairs/fee/api_server from the
+base while overriding only what the node file states directly. Verified
+end-to-end with a live backtest (timeframe and max_open_trades both
+correctly overridden through the 2-level chain, pair whitelist and fee
+correctly inherited).
 
 ### 9. `lookahead-analysis` needs `--pairs`
 It reads `config["pairs"]` (the `--pairs` CLI arg), **not**
@@ -283,3 +316,77 @@ Do not spend an iteration chasing any of these.
 found`. It means funding fees are silently zero (gotcha #13) and every futures
 backtest is optimistic. Treat it as a failure: re-verify per
 `.agent/reference/data-download.md` (funding section), not as teardown noise.
+
+### 14. Hardware / hyperopt parallelism
+`nproc` reports **12 CPU cores** on this machine (verified 2026-09-27). `-j
+-1` (freqtrade's default) uses all of them; `maze.py run --cmd hyperopt`
+defaults to `-1` too. Benchmark one epoch's wall time before launching a
+large (e.g. >= 300) epoch run and report the ETA rather than guessing.
+
+### 15. `--enable-protections` works during hyperopt (corrected assumption)
+The framework used to assume epochs run without protections during hyperopt
+(too slow, excluded space) and that Step 4's OOS backtest was the first time
+protections applied. Verified false, 2026-09-27, against
+`freqtrade/optimize/hyperopt/hyperopt_optimizer.py` (`enable_protections` is
+set on the backtester exactly like the backtest command) and confirmed live
+(a hyperopt run with `--enable-protections --spaces buy stoploss risk
+protection` correctly exported a `protection_params` block and respected
+`CooldownPeriod`). `maze.py run --cmd hyperopt` passes it by default. See
+`.agent/phases/05-HYPEROPT.md` and `04M-MAZE.md`.
+
+### 16. Custom hyperopt spaces beyond the builtins
+A strategy `Parameter(..., space="anything")` creates a genuinely custom
+hyperopt space — not limited to `buy`/`sell`/`protection`. `--spaces risk`
+(this framework's convention for leverage-cap / volatility-target search;
+see `kotegawa-risk-layer.md` K7) works with zero freqtrade-side
+configuration beyond declaring the parameter and passing `--spaces risk` —
+verified live (`opt_lev_cap = DecimalParameter(1.0, 3.0, space="risk")`
+appeared correctly under a `risk_params` block in both the exported params
+file and every `.fthypt` epoch's `params_details`). A strategy can also
+override `HyperOpt.stoploss_space()` (and `roi_space()`/`trailing_space()`)
+as a class method to bound a builtin space tighter than freqtrade's default
+range — verified live (a `stoploss_space` returning `SKDecimal(-0.20, -0.02,
+...)` correctly bounded every epoch's stoploss into that range).
+
+### 17. Hyperopt results file mechanics — `.fthypt`, not just the CLI printout
+Every epoch (not just the "best" one freqtrade prints) is written as one JSON
+line per epoch to `user_data/hyperopt_results/strategy_<Name>_<timestamp>.fthypt`.
+Each line has `loss`, `params_dict`, `params_details` (grouped by space,
+exactly the shape of the params-file format), `params_not_optimized` (the
+spaces NOT in `--spaces`, i.e. whatever was staged/fixed going in — useful
+for genome inheritance, see `04M-MAZE.md`), `results_metrics` (the full
+`generate_strategy_stats` dict, same shape as a backtest zip's stats,
+including a `trades` list), and `current_epoch`/`is_best`. `maze.py` reads
+this file directly rather than relying on `hyperopt-show`/`hyperopt-list`.
+
+**freqtrade's own "Best result" printout and `<Name>.json` auto-export only
+fire if an epoch's loss beats a hard-coded starting threshold of exactly
+`100`** (`hyperopt.py: self.current_best_loss = 100`, not `inf`, not
+`MAX_LOSS`). A loss function whose failing-epoch scores are `>= 100` (like
+`MazeGateLoss`, deliberately, at `>= 1000`) will make freqtrade print "No
+good result found for given optimization function in N epochs" even though
+every epoch ran fine and is sitting in the `.fthypt` file — this is
+expected, not a crash; see `MazeGateLoss.py`'s docstring.
+
+**The "saved to '<path>'." log line wraps onto a new line** when the path is
+long (verified — rich's console width, not a raw single line). Any tool
+parsing stdout for that path needs a regex tolerant of an embedded newline
+(`saved to\s*\n?\s*'([^']+)'`), not a same-line match.
+
+### 18. Backtest zip stats — units and display-vs-setting traps
+Verified against a real export, both bit this framework's own tooling during
+the MAZE build (2026-09-27):
+- `backtest_start_ts` / `backtest_end_ts` in a zip's stats JSON are epoch
+  **milliseconds**, not seconds. Dividing by 86400 instead of 86400000
+  inflates a day-count 1000x.
+- `stats["max_open_trades"]` is `min(configured_max_open_trades,
+  len(pairlist))` — a REPORTING stat (`optimize_reports.py`), not the value
+  freqtrade actually divides available balance by when sizing a trade
+  (`backtesting.py` uses `self.strategy.max_open_trades`, the true
+  configured cap). For any K2/position-sizing calculation from a zip or
+  epoch, use `stats["max_open_trades_setting"]` instead (`-1` means
+  "infinite"/unset), not `stats["max_open_trades"]`.
+- The zip's `*_config.json` member is the fully-RESOLVED config (post
+  `add_config_files` chaining and CLI overrides) — prefer it over re-reading
+  a node's raw overlay file from disk when scoring gates, which will be
+  missing any key it only inherits rather than sets directly.
