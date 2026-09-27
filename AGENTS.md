@@ -81,6 +81,31 @@ Rules:
   (`.agent/phases/04M-MAZE.md`) — there is no fixed iteration count from here
   on; the maze's own exhaustion rule decides when to stop trying variants.
 
+### Worktree discipline (per-run isolation)
+
+All strategy work happens in a dedicated git worktree; the main checkout is
+never blocked by a run.
+
+1. **Every run gets its own worktree.** Before Phase 0 of a new strategy:
+   ```
+   git worktree add -b rj/strategy/<Name> ../freqtrade-<name> rj/develop
+   ```
+   Research/docs-only work: `rj/research/<topic>`. Framework refinements:
+   `rj/framework/<topic>`. Every phase of that run executes inside its
+   worktree directory — never in the main checkout.
+2. **The main checkout must never be blocked.** No strategy files, no run
+   state edits, no long-running freqtrade commands there. Stay on whatever
+   branch the user left it on; never check out another branch in it while a
+   run is active.
+3. **Run state is per-worktree.** Each worktree carries its own working
+   copies of `.agent/STATE.md` / `JOURNAL.md` (usually uncommitted).
+   Cross-worktree coordination goes through committed files only —
+   `.agent/reports/PORTFOLIO.md` and the plan folder. Never reach into
+   another worktree's uncommitted state.
+4. **Branches fork from `rj/develop`** and merge back via PR. A worktree is
+   removed only after its PR merges and the user approves cleanup
+   (`git worktree remove`).
+
 ---
 
 ## 4. AUTONOMY CONTRACT (companion mode)
@@ -97,6 +122,8 @@ You run the mechanical loop yourself. You stop for judgement calls.
 - Running any `maze.py` node whose move type and parameter spaces were
   already covered by an approved T1 candidate set / T2 spaces list
 - Pruning a maze node whose gate table failed (recording it, not deleting it)
+- Creating the per-run worktree for a user-approved strategy pick or an
+  approved research/framework task (`git worktree add`, `git worktree list`)
 
 **YELLOW — propose, then wait for "yes":**
 - Changing the strategy hypothesis or adding an indicator not in the strategy idea
@@ -119,7 +146,8 @@ You run the mechanical loop yourself. You stop for judgement calls.
 - Writing real API keys/secrets into any file
 - Editing anything under `freqtrade/` (see §1)
 - Deleting anything in `user_data/data/`
-- `git commit`, `git push`, or any git write op unless explicitly told
+- `git commit`, `git push`, `git worktree remove`, or any history-changing
+  git write op unless explicitly told
 
 ---
 
