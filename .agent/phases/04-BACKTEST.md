@@ -197,12 +197,17 @@ VERDICT: PASS (proceed to Phase 5) / FAIL (iterate)
 ```
 
 ## If FAIL
-Do NOT proceed to Phase 5.
-1. Write the analysis to `.agent/reports/<strategy>/phase4-iter<N>.md`
-2. Read `.agent/prompts/backtest-postmortem.md` and follow it
+This measurement is the maze's **T0 root node** — do not iterate here.
+1. Write the analysis to `.agent/reports/<strategy>/phase4-iter1.md`
+2. Read `.agent/prompts/backtest-postmortem.md` and follow it (still the
+   right tool for classifying the failure mode and naming a root cause; only
+   its ending changed — it now feeds moves into the maze instead of
+   proposing one change to wait on)
 3. Append the outcome to `.agent/JOURNAL.md`
-4. Propose ONE targeted change and name the phase to revisit (2 or 3)
-5. Wait for approval, then re-enter that phase
+4. Continue to `.agent/phases/04M-MAZE.md` — name the T1 candidate set from
+   the postmortem's classification, get it approved (YELLOW, once, for the
+   whole set), and proceed into the tree
 
-After 3 failed iterations, stop and escalate to the user with a summary of
-every change tried and its effect.
+There is no fixed iteration budget here anymore (that was Phases 1-3's rule,
+still true for those — see `iteration-fix.md`). The maze's own exhaustion
+rule (`04M-MAZE.md` "Exhaustion") decides when to stop, not a counter.

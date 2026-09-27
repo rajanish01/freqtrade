@@ -11,7 +11,7 @@ process — it is evidence, not waste.
 
 | # | Strategy | TF | Short | Phase | Verdict | Report |
 |---|----------|-----|-------|-------|---------|--------|
-| 1 | BBRSIMeanReversion | 15m | yes | 4 | DEAD | .agent/reports/BBRSIMeanReversion/DEAD.md |
+| 1 | BBRSIMeanReversion | 15m | yes | 0 | RESET (DEAD 2026-09-26; user-directed reset 2026-09-28 — re-enter via MAZE) | `.agent/reports/_archive/pre-maze-2026-09-27/BBRSIMeanReversion/DEAD.md` (prior verdict, kept) |
 | 2 | KeltnerATRReversion | 15m | yes | 0 | NOT_STARTED | — |
 | 3 | VWAPBandReversion | 15m | yes | 0 | NOT_STARTED | — |
 | 4 | EWODipHunter | 15m | no | 0 | NOT_STARTED | — |
@@ -20,9 +20,14 @@ process — it is evidence, not waste.
 | 7 | ObeliskRSIRegime | 15m | yes | 0 | NOT_STARTED | — |
 | 8 | FundingSkewCarry | 1h | yes | 0 | NOT_STARTED | — |
 | 9 | LiquidationWickFade | 5m | yes | 0 | NOT_STARTED | — |
+| 10 | DonchianATRBreakout | 15m | yes | 4 | RESET (pre-maze FAIL iter 1, 2026-09-27; re-enter via MAZE) | `.agent/reports/_archive/pre-maze-2026-09-27/DonchianATRBreakout/phase4-iter1.md` |
+| 11 | BBSqueezeBreakout | 15m | yes | 0 | NOT_STARTED | — |
+| 12 | RelativeStrengthBTC | 15m | yes | 0 | NOT_STARTED | — |
 
-Verdict values: `DEPLOYED` (passed Phase 7, dry-run candidate — link FINAL.md)
-| `DEAD` (hypothesis not supported — link DEAD.md) | `NOT_STARTED`.
+Verdict values: `DEPLOYED` (passed the maze T5 vault + Phase 7/8, dry-run
+candidate — link FINAL.md) | `DEAD` (hypothesis not supported — link
+DEAD.md) | `RESET` (run archived mid-flight, to be re-entered via
+`.agent/phases/04M-MAZE.md`) | `NOT_STARTED`.
 
 ## Family scorecard
 
@@ -32,10 +37,13 @@ deployment and another produces every death, that is a portfolio-level finding
 
 | Family | Plans | Deployed | Dead | Lesson so far |
 |--------|-------|----------|------|---------------|
-| band reversion | 3 (1,2,3) | 0 | 0 | — |
+| band reversion | 3 (1,2,3) | 0 | 1 | cost floor at 15m: +0.2% median wins cannot clear 0.1% round-trip (plan 1 DEAD; binds 2, 3) |
 | dip buying | 1 (4) | 0 | 0 | — |
 | trend / trend+band | 3 (5,6,7) | 0 | 0 | — |
 | futures-native | 2 (8,9) | 0 | 0 | — |
+| breakout | 1 (10) | 0 | 0 | pre-maze: same cost-floor pattern (raw edge consumed ~10x by fees); reset, to be re-entered via MAZE with timeframe/filter moves |
+| vol compression | 1 (11) | 0 | 0 | — |
+| cross-pair | 1 (12) | 0 | 0 | — |
 
 ## Lessons ledger
 

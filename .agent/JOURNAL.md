@@ -280,3 +280,98 @@ Result:   PR #3: https://github.com/rajanish01/freqtrade/pull/3 —
           3 refinements). First gh pr create failed on shell quoting of the
           long --body; fixed with --body-file.
 Decision: Awaiting user review/merge. Next strategy is a separate decision.
+
+## 2026-09-27 — PHASE 0 + 1 PASS — DonchianATRBreakout run started
+Strategy: DonchianATRBreakout (plan #10, breakout family, 4/5 confidence)
+Branch:   rj/strategy/DonchianATRBreakout forked from rj/develop (user-approved pick)
+Result:   Phase 0: framework-check.sh 10/10 PASS (data 10 majors 15m+1m full
+          range, canary 50 trades, funding 39/50 non-zero). Phase 1: scaffold
+          created, pyflakes clean, list-strategies OK, smoke 0 trades clean.
+          Risk layer verified: K2 1.2% equity/trade, K7 8.3x liquidation
+          headroom, trailing disabled (exit channel is the exit), lev cap 2.0.
+Next:     Phase 2 INDICATORS (Donchian channels with load-bearing shift(1)).
+
+## 2026-09-27 — PHASE 2 PASS — DonchianATRBreakout
+Result:  indicators in (Donchian entry/exit channels with load-bearing shift(1),
+         ADX, vol SMA/spike, NATR); recursive-analysis 0.000% drift — stable at
+         startup 200; smoke clean 0 trades. 1 in-phase fix (talib import alias).
+Next:    Phase 3 SIGNALS.
+
+## 2026-09-27 — PHASE 3 PASS — DonchianATRBreakout
+Result:  signals in (level-test breakout entries + ADX/volume conjuncts, both
+         sides; exit on shorter Donchian channel). Smoke 1-month: 215 trades,
+         win 35.8% (plan expected 35-45% for payoffs), avg duration 8h12m.
+         Band: marginally above 1-200 guidance, far below 2000 noise FAIL.
+Next:    Phase 4 BACKTEST (IS 20220101-20250630, protections on, 1m detail).
+
+## 2026-09-27 — PHASE 4 FAIL (iter 1) — DonchianATRBreakout
+Result:  IS baseline (defaults, protections ON): 3688 trades, PF 0.9068,
+         -31.02%, DD 45.65%, Sharpe -0.59, win 33.5%. 4 gates FAIL (PF, DD,
+         Sharpe, profitable pairs 3/10). Bias checks CLEAN. 1m detail
+         (reduced H1 2025, SOL/ETH/BNB): divergence 0.0% vs main-TF (PF
+         1.0621 both) — no flattery. Cost decomposition: raw edge +36.6
+         USDT at zero costs, fees 339.34 consume it ~10x over (BBRSI
+         cost-floor pattern, different entry style). Risk layer NOT the
+         problem: stoploss share 2.0% of gross loss, K2/K7 passing, lev avg
+         1.18x. Monthly: 16/42 positive, profit clustered 2022-01/02,
+         848-day DD. Hypothesis UNDETERMINED (kill criterion = after one
+         round of tuning — none yet).
+Fix:     proposed opt_adx_min 25 -> 30 (Phase 3, within declared range),
+         awaiting user approval. Analysis: phase4-iter1.md.
+
+## 2026-09-28 — FRAMEWORK UPGRADE v3 (MAZE) + RESET — NOTE
+Strategy: portfolio-wide (no active strategy run — all prior runs reset)
+Command:  none against live strategies (file edits + MazeProbe tooling smoke tests
+          only; all MazeProbe artifacts deleted after validation)
+Result:   User-directed: "reset all previous plan runs, create a branch from
+          rj/develop, start." Branch rj/framework/maze forked from rj/develop
+          (5812a4134). Reset: DonchianATRBreakout (Phase-4 FAIL iter 1, PF
+          0.9068) and BBRSIMeanReversion (DEAD — verdict stands) reports
+          archived to .agent/reports/_archive/pre-maze-2026-09-27/, strategy
+          .py as .py.txt, result zips to results/_archive/pre-maze-2026-09-27/.
+          Donchian plan file remains live; BBRSI lesson ledger intact.
+          Framework v3 built and verified end-to-end:
+          - 04M-MAZE.md: tree protocol T0-T5 replacing linear Phase 4-FAIL
+            iteration; exhaustion rule; one-shot vault (20260710-20260923).
+          - .agent/scripts/maze.py: init/node/run(hyperopt+backtest)/promote/
+            mark/status/tree/gates/vault; ledger.csv + tree.md per strategy;
+            genome staging via the strategy's params-file slot (staged before,
+            restored after every run — verified).
+          - .agent/scripts/hyperopt/MazeGateLoss.py: gate-aligned hyperopt
+            loss (PF/DD/Sharpe/rate/pair/stoploss-share/funding/K4/K2/K7);
+            gate gradient verified live (failing epochs 1001-1036, graduated,
+            not cliff).
+          - Full lifecycle verified on a throwaway probe: promoted child's
+            backtest gate score EXACTLY equals its source hyperopt epoch's
+            score (-1001.7425) — inheritance + scoring pipeline self-consistent.
+          - Policy change (from the approved MAZE plan): risk NUMBERS
+            (stoploss, lev cap, protection values) are a bounded T2 search
+            dimension, formula-gated K2/K7, scored per-epoch by MazeGateLoss.
+            Risk MECHANISM unchanged, still never ML.
+          - Verification finds corrected: config > strategy precedence
+            (gotcha #8 was backwards); --enable-protections DOES work with
+            hyperopt (old phase-5 assumption wrong); zip stats timestamps are
+            ms; max_open_trades display-stat vs setting; nested
+            add_config_files chaining; "saved to" line-wrap regex.
+Decision: Framework v3 is the focus; next session picks a pilot (Donchian
+          ATRBreakout's cost-floor failure mode is the natural first maze
+          candidate — T1 = timeframe/confirmation-filter/exit-mechanism moves)
+          and starts the tree with maze.py init.
+
+## 2026-09-28 — RESET — BBRSIMeanReversion (user-directed) — NOTE
+Strategy: BBRSIMeanReversion (plan 1, band reversion)
+Command:  file edits only (no backtests run)
+Result:   User-directed reset of the DEAD run, same treatment as DonchianATR
+          Breakout's reset. State: strategy .py + config were already deleted
+          at the 2026-09-26 DEAD-verdict close (nothing to un-archive); the
+          pre-maze record (DEAD.md, journal, phase4-iter1.md) stays archived
+          at .agent/reports/_archive/pre-maze-2026-09-27/BBRSIMeanReversion/.
+          Ledgers updated: STATE/PORTFOLIO/INDEX row 1 -> RESET (re-enter via
+          MAZE, Phase 0/1 rebuild from the plan). DEAD verdict kept, never
+          deleted.
+Decision: BBRSIMeanReversion re-enters through the MAZE when picked up. The
+          T1 candidate set for its cost-floor failure mode: confirmation
+          filter before the knife-candle entry + a timeframe step (the two
+          responses its lesson called for that the old 3-iteration budget
+          never allowed). Both reset runs (plans 1, 10) are now available;
+          pilot pick is the user's call.

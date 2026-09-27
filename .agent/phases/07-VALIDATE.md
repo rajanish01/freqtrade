@@ -1,12 +1,18 @@
-# Phase 7: Walk-Forward Validation & Robustness
+# Phase 7: Walk-Forward Validation & Robustness — MAZE tier T4 methodology
 
 ## Prerequisite
-Phase 5 VERDICT = PASS (or Phase 6 VERDICT = KEEP).
+Used as the **T4** tool inside `.agent/phases/04M-MAZE.md`, applied to EVERY
+T3 survivor (a node whose promoted, 1m-detail-confirmed hyperopt epoch passed
+every Phase-4/CONVENTIONS gate) — not once at the end of a single linear run.
+(Phase 6 FreqAI, if used, sits between T3 and this: Phase 6 VERDICT = KEEP is
+also a valid entry point.)
 
 ## Your Task
-Try to break the strategy. You do NOT modify it in this phase — you only run
-tests and report. A strategy that survives this is deployable; one that does
-not is a curve fit that happened to pass one window.
+Try to break the node. You do NOT modify the strategy file in this phase —
+you only run tests and report. A node that survives this proceeds to T5
+(OOS, then the vault); one that does not is a curve fit that happened to
+pass one window, and is `PRUNED` in the ledger with the specific failing
+test recorded (`maze.py mark <Name> <node_id> PRUNED --note "..."`).
 
 ---
 
@@ -45,13 +51,13 @@ a regime filter; one that loses randomly cannot.
 Take the 3 most impactful `opt_*` parameters. For each, re-run the full IS
 backtest at -20%, optimal, and +20%.
 
-To vary a parameter without editing the class, edit the value in
-`user_data/strategies/<StrategyName>.json` (hyperopt's output file), run, then
-restore it. Record the original values before you start.
-If Phase 5 promoted the params to class defaults and the json was deleted, do
-NOT edit the class (forbidden above). Instead recreate a minimal
-`<StrategyName>.json` containing only the parameters under test — freqtrade
-merges it over the class defaults — run, then delete it again.
+The node's genome snapshot (`.agent/reports/<Name>/maze/params/<node_id>.json`)
+already has the exact values — copy it, perturb the 3 parameters ±20%, and
+run through `maze.py` by pointing a scratch node at the perturbed file
+(`maze.py node <Name> --parent <node_id> --tier T4 --type sensitivity --desc
+"<param> -20%" --genome-from <path-to-perturbed-json>`), rather than hand
+-editing the shared params-file slot. This keeps every perturbation in the
+ledger instead of a manually-restored scratch file.
 
 Failure condition: profit factor drops below 1.0 at either ±20% -> brittle.
 A robust parameter sits on a plateau, not a spike.
@@ -103,13 +109,14 @@ complete (memory), record SKIPPED with the reason — do not pretend it ran.
 - [ ] >= 60% of pairs profitable, no pair > 50% of profit
 - [ ] Profit factor > 1.0 at 2x fees
 - [ ] Any temporarily modified file restored to its original value
-- [ ] `.agent/reports/<strategy>/phase7-validation.md` written
+- [ ] Result recorded in the ledger (`maze.py mark <Name> <node_id> ...`) and
+      in `.agent/reports/<strategy>/maze/runs/`
 - [ ] `.agent/STATE.md` and `.agent/JOURNAL.md` updated
 
 ## Output Format
 
 ```
-PHASE 7 RESULTS — <StrategyName>
+MAZE T4 RESULTS — <StrategyName> <node_id>
 ─────────────────────────
 WALK-FORWARD
 Quarter              Trades   PF     DD%    Verdict
@@ -128,6 +135,6 @@ Losing pairs: <list>
 COST SENSITIVITY
 PF at 1x fees: <N>    PF at 2x fees: <N>
 ─────────────────────────
-VERDICT: ROBUST (proceed to Phase 8) / FRAGILE
+VERDICT: ROBUST (proceed to T5 — OOS, then the vault) / FRAGILE (prune this node)
 Failure points: <explicit list, or "none">
 ```

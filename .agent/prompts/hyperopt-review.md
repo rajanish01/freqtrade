@@ -1,7 +1,17 @@
 # Hyperopt Review
 
-Run after Phase 5 Step 1, before applying parameters. Diagnose only — no code
-changes, no commands beyond `hyperopt-list` / `hyperopt-show`.
+Run after `.agent/phases/05-HYPEROPT.md` Step 1 (MAZE tier T2), before
+promoting an epoch to a T3 node. Diagnose only — no code changes, no commands
+beyond reading `.agent/reports/<Name>/maze/runs/<node_id>_epochs.csv`
+(written by `maze.py run --cmd hyperopt`) or `hyperopt-list` / `hyperopt-show`
+directly against the `.fthypt` file named in the ledger's `artifact` column.
+
+Note on the loss value: with `MazeGateLoss` (the T2 default), a failing
+epoch's loss is `>= 1000` and a passing epoch's is a negative Calmar-like
+number — do not compare raw loss magnitudes to older runs made with
+`SharpeHyperOptLossDaily`, they are on a different scale by design (see
+`MazeGateLoss.py`'s docstring). Use the `gate_pass` / `score` columns `maze.py` computed in that CSV, not the
+raw `loss` column, when judging epochs here.
 
 ## Check 1 — Range edges
 For each optimised parameter, compare the winning value to its declared range.
@@ -35,6 +45,15 @@ Inspect the top 10 epochs.
 
 Clustering is the single most predictive signal here. A scattered top-10 almost
 always precedes an overfit verdict in Step 5.
+
+**Cross-node version (maze-specific):** if this strategy has more than one T2
+sibling (different T1 structural shapes, each hyperopted), also compare the
+best epoch ACROSS nodes, not just within one. Similar parameters winning
+under different structural shapes is a much stronger signal than clustering
+within a single run — it means the edge is not an artifact of one specific
+filter/timeframe choice. Wildly different "optimal" parameters per shape,
+each barely clearing the gates, is the multi-node version of scattering —
+treat it with the same suspicion `04M-MAZE.md`'s anti-pattern #13 warns about.
 
 ## Check 5 — Trade count
 Does the winning epoch satisfy `hyperopt_min_trades`? Optimisers love finding a
