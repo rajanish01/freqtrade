@@ -375,3 +375,15 @@ Decision: BBRSIMeanReversion re-enters through the MAZE when picked up. The
           responses its lesson called for that the old 3-iteration budget
           never allowed). Both reset runs (plans 1, 10) are now available;
           pilot pick is the user's call.
+
+## 2026-09-28 — PR TO rj/develop — DONE (Framework v3 MAZE)
+Strategy: portfolio-wide framework work (no strategy run)
+Command:  git add -A + commit 61ea2bb37 + git push -u origin rj/framework/maze
+          + gh pr create --base rj/develop --body-file /tmp/opencode/pr-body.md
+Result:   PR #5: https://github.com/rajanish01/freqtrade/pull/5 —
+          "Framework v3: MAZE exhaustive variant search (T0-T5) + pre-maze run
+          resets". Base rj/develop, head rj/framework/maze, 1 commit, 30 files
+          (+2971/-299). framework-check 11 PASS / 0 FAIL pre-commit. Body via
+          --body-file (no quoting issue this time).
+Decision: Awaiting user review/merge. Next: pick a maze pilot (plans 1 or 10,
+          user's call) and start with maze.py init + Phase 0/1.
